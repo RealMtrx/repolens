@@ -7,4 +7,5 @@ docs/api/
 .env.local
 .DS_Store
 *.log
+*.tgz
 .npmrc
