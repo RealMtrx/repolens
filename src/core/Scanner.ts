@@ -1,38 +1,36 @@
 import { promises as fs, existsSync } from "node:fs";
 import path from "node:path";
-import { DEFAULT_EXCLUDE_PATTERNS } from "../constants/index.js";
+import { DEFAULT_EXCLUDE_PATTERNS, MAX_FILE_SIZE_DEFAULT } from "../constants/index.js";
 import type { AnalysisOptions, FileInfo, FolderInfo } from "../types/index.js";
 import { isBinaryFile } from "../utils/file.js";
 
+export interface ScanResult {
+  files: FileInfo[];
+  folders: FolderInfo[];
+  emptyFolders: string[];
+}
+
 export class Scanner {
-  private readonly options: AnalysisOptions;
-  private readonly excludePatterns: RegExp[];
+  private readonly excludeRegexes: RegExp[];
 
   constructor(options: AnalysisOptions) {
-    this.options = options;
-    this.excludePatterns = [...DEFAULT_EXCLUDE_PATTERNS, ...options.excludePatterns].map((p) =>
-      this.patternToRegex(p),
+    this.excludeRegexes = [...DEFAULT_EXCLUDE_PATTERNS, ...options.excludePatterns].map((p) =>
+      Scanner.patternToRegex(p),
     );
   }
 
-  async scan(rootPath: string): Promise<{
-    files: FileInfo[];
-    folders: FolderInfo[];
-    emptyFolders: string[];
-  }> {
+  async scan(rootPath: string): Promise<ScanResult> {
+    const resolvedRoot = path.resolve(rootPath);
+
     const files: FileInfo[] = [];
     const emptyFolders: string[] = [];
     const folderMap = new Map<string, { fileCount: number; totalSize: number }>();
 
-    await this.walkDirectory(rootPath, rootPath, files, folderMap, emptyFolders);
+    await this.walkDirectory(resolvedRoot, resolvedRoot, files, folderMap, emptyFolders);
 
     const folders: FolderInfo[] = [];
     for (const [folderPath, info] of folderMap) {
-      folders.push({
-        path: folderPath,
-        fileCount: info.fileCount,
-        totalSize: info.totalSize,
-      });
+      folders.push({ path: folderPath, fileCount: info.fileCount, totalSize: info.totalSize });
     }
 
     return { files, folders, emptyFolders };
@@ -56,26 +54,29 @@ export class Scanner {
     const hasSubDir = dirRelative.length > 0;
     let hasEntries = false;
 
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry);
-      const relativePath = path.relative(rootPath, fullPath);
+    const dirs: string[] = [];
+    const fileEntries: string[] = [];
 
+    for (const entry of entries) {
+      const relativePath = path.relative(rootPath, path.join(dirPath, entry));
       if (this.shouldExclude(relativePath)) {
         continue;
       }
 
       let stat;
       try {
-        stat = await fs.stat(fullPath);
+        stat = await fs.stat(path.join(dirPath, entry));
       } catch {
         continue;
       }
 
+      hasEntries = true;
+
       if (stat.isDirectory()) {
-        hasEntries = true;
-        await this.walkDirectory(fullPath, rootPath, files, folderMap, emptyFolders);
+        dirs.push(entry);
       } else if (stat.isFile()) {
-        hasEntries = true;
+        fileEntries.push(entry);
+
         const parentDir = path.relative(rootPath, dirPath);
         const existing = folderMap.get(parentDir);
         if (existing) {
@@ -85,7 +86,7 @@ export class Scanner {
           folderMap.set(parentDir, { fileCount: 1, totalSize: stat.size });
         }
 
-        if (stat.size <= this.options.maxFileSize) {
+        if (stat.size <= MAX_FILE_SIZE_DEFAULT) {
           files.push({
             path: relativePath,
             size: stat.size,
@@ -97,6 +98,12 @@ export class Scanner {
       }
     }
 
+    await Promise.all(
+      dirs.map((dir) =>
+        this.walkDirectory(path.join(dirPath, dir), rootPath, files, folderMap, emptyFolders),
+      ),
+    );
+
     if (!hasEntries && hasSubDir) {
       emptyFolders.push(dirRelative);
     }
@@ -104,18 +111,16 @@ export class Scanner {
 
   private shouldExclude(relativePath: string): boolean {
     const normalized = relativePath.replace(/\\/g, "/");
-    return this.excludePatterns.some((regex) => regex.test(normalized));
+    return this.excludeRegexes.some((regex) => regex.test(normalized));
   }
 
-  private patternToRegex(pattern: string): RegExp {
-    const regexStr =
-      "^" +
-      pattern
-        .replace(/\*\*/g, "\x00\x00")
-        .replace(/\*/g, "[^/]*")
-        .replace(/\x00\x00/g, ".*") +
-      "$";
-    return new RegExp(regexStr);
+  static patternToRegex(pattern: string): RegExp {
+    const regexStr = pattern
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*\*/g, "@@DOUBLESTAR@@")
+      .replace(/\*/g, "[^/]*")
+      .replace(/@@DOUBLESTAR@@/g, ".*");
+    return new RegExp(`^${regexStr}$`);
   }
 
   static findProjectRoot(startPath: string): string {

@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import ora from "ora";
 import { AnalyzerEngine } from "../core/AnalyzerEngine.js";
 import { AnalysisOptionsModel } from "../models/AnalysisOptionsModel.js";
@@ -34,8 +35,7 @@ export async function scanCommand(
       const reporter = new JsonReporter();
       const output = reporter.render(report);
       if (options.output) {
-        const { promises: fs } = await import("node:fs");
-        await fs.writeFile(options.output, output, "utf-8");
+        await writeFile(options.output, output, "utf-8");
         console.log(`JSON report saved to ${options.output}`);
       } else {
         console.log(output);
@@ -44,8 +44,7 @@ export async function scanCommand(
       const reporter = new MarkdownReporter();
       const output = reporter.render(report);
       if (options.output) {
-        const { promises: fs } = await import("node:fs");
-        await fs.writeFile(options.output, output, "utf-8");
+        await writeFile(options.output, output, "utf-8");
         console.log(`Markdown report saved to ${options.output}`);
       } else {
         console.log(output);
@@ -54,8 +53,7 @@ export async function scanCommand(
       const reporter = new HtmlReporter();
       const output = reporter.render(report);
       if (options.output) {
-        const { promises: fs } = await import("node:fs");
-        await fs.writeFile(options.output, output, "utf-8");
+        await writeFile(options.output, output, "utf-8");
         console.log(`HTML report saved to ${options.output}`);
       } else {
         console.log(output);
@@ -100,30 +98,30 @@ export async function doctorCommand(dir?: string): Promise<void> {
     const report = await engine.analyze(targetPath);
     spinner.succeed("Diagnostics complete");
 
-    const issues = [
-      ...report.hardcodedSecrets.map((s) => ({
-        type: "critical" as const,
-        message: `Hardcoded secret: ${s.type} in ${s.file}`,
-      })),
-      ...report.circularImports.map((c) => ({
-        type: "critical" as const,
-        message: `Circular import in ${c.file}`,
-      })),
-      ...report.dependencyIssues
-        .filter((d) => d.severity === "critical")
-        .map((d) => ({ type: "critical" as const, message: `${d.name}: ${d.details}` })),
-      ...report.dependencyIssues
-        .filter((d) => d.severity === "warning")
-        .map((d) => ({ type: "warning" as const, message: `${d.name}: ${d.details}` })),
-      ...report.todoComments.map((t) => ({
-        type: "warning" as const,
-        message: `${t.type} in ${t.file}:${t.line}`,
-      })),
-      ...report.emptyFolders.map((f) => ({
-        type: "warning" as const,
-        message: `Empty folder: ${f}`,
-      })),
-    ];
+    const issues: { type: "critical" | "warning"; message: string }[] = [];
+
+    for (const s of report.hardcodedSecrets) {
+      issues.push({ type: "critical", message: `Hardcoded ${s.type} in ${s.file}:${s.line}` });
+    }
+    for (const c of report.circularImports) {
+      issues.push({ type: "critical", message: `Circular import in ${c.file}` });
+    }
+    for (const d of report.dependencyIssues) {
+      if (d.severity === "critical") {
+        issues.push({ type: "critical", message: d.details });
+      }
+    }
+    for (const d of report.dependencyIssues) {
+      if (d.severity === "warning") {
+        issues.push({ type: "warning", message: d.details });
+      }
+    }
+    for (const t of report.todoComments) {
+      issues.push({ type: "warning", message: `${t.type} in ${t.file}:${t.line} — ${t.text}` });
+    }
+    for (const f of report.emptyFolders) {
+      issues.push({ type: "warning", message: `Empty folder: ${f}` });
+    }
 
     if (report.missingReadme) {
       issues.push({ type: "warning", message: "Missing README.md" });
@@ -135,37 +133,37 @@ export async function doctorCommand(dir?: string): Promise<void> {
       issues.push({ type: "warning", message: "Missing .gitignore" });
     }
     if (report.missingTests) {
-      issues.push({ type: "warning", message: "Missing tests" });
+      issues.push({ type: "warning", message: "No test files found" });
     }
     if (report.missingCi) {
-      issues.push({ type: "warning", message: "Missing CI configuration" });
+      issues.push({ type: "warning", message: "No CI configuration found" });
     }
 
-    console.log(`\n${"=".repeat(50)}`);
-    console.log(`RepoLens Doctor Report for ${report.projectName}`);
-    console.log("=".repeat(50));
+    console.log(`\n${"=".repeat(56)}`);
+    console.log(`  RepoLens Doctor — ${report.projectName}`);
+    console.log("=".repeat(56));
 
     const criticalCount = issues.filter((i) => i.type === "critical").length;
     const warningCount = issues.filter((i) => i.type === "warning").length;
 
-    console.log(`\nIssues found: ${criticalCount + warningCount}`);
-    console.log(`  Critical: ${criticalCount}`);
-    console.log(`  Warnings: ${warningCount}`);
-    console.log(`  Score: ${report.score}/100`);
+    console.log(`\n  Overall Score: ${report.score}/100`);
+    console.log(`  Issues found:  ${criticalCount + warningCount}`);
+    console.log(`    Critical:    ${criticalCount}`);
+    console.log(`    Warnings:    ${warningCount}`);
 
     if (issues.length > 0) {
-      console.log(`\n${"-".repeat(50)}`);
+      console.log(`\n${"\u2500".repeat(56)}`);
       for (const issue of issues) {
-        const prefix = issue.type === "critical" ? "\u2716" : "\u26A0";
-        console.log(` ${prefix} [${issue.type.toUpperCase()}] ${issue.message}`);
+        const icon = issue.type === "critical" ? "\u2716" : "\u26A0";
+        console.log(`  ${icon} [${issue.type.toUpperCase().padEnd(8)}] ${issue.message}`);
       }
     }
 
     if (report.recommendations.length > 0) {
-      console.log(`\n${"-".repeat(50)}`);
-      console.log("Recommendations:");
+      console.log(`\n${"\u2500".repeat(56)}`);
+      console.log("  Recommendations:");
       for (const rec of report.recommendations) {
-        console.log(`  \u2192 ${rec}`);
+        console.log(`    \u2192 ${rec}`);
       }
     }
 
@@ -191,8 +189,7 @@ export async function jsonCommand(dir?: string, outputFile?: string): Promise<vo
     const output = reporter.render(report);
 
     if (outputFile) {
-      const { promises: fs } = await import("node:fs");
-      await fs.writeFile(outputFile, output, "utf-8");
+      await writeFile(outputFile, output, "utf-8");
       console.log(`Report saved to ${outputFile}`);
     } else {
       console.log(output);
@@ -218,8 +215,7 @@ export async function markdownCommand(dir?: string, outputFile?: string): Promis
     const output = reporter.render(report);
 
     if (outputFile) {
-      const { promises: fs } = await import("node:fs");
-      await fs.writeFile(outputFile, output, "utf-8");
+      await writeFile(outputFile, output, "utf-8");
       console.log(`Report saved to ${outputFile}`);
     } else {
       console.log(output);
@@ -245,8 +241,7 @@ export async function htmlCommand(dir?: string, outputFile?: string): Promise<vo
     const output = reporter.render(report);
 
     const filePath = outputFile ?? "repolens-report.html";
-    const { promises: fs } = await import("node:fs");
-    await fs.writeFile(filePath, output, "utf-8");
+    await writeFile(filePath, output, "utf-8");
     console.log(`HTML report saved to ${filePath}`);
   } catch (error) {
     spinner.fail("HTML report generation failed");

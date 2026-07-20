@@ -23,8 +23,11 @@ describe("formatFileSize", () => {
   });
 
   it("formats decimal values", () => {
-    const result = formatFileSize(1536);
-    expect(result).toBe("1.50 KB");
+    expect(formatFileSize(1536)).toBe("1.50 KB");
+  });
+
+  it("handles exact megabyte", () => {
+    expect(formatFileSize(1_048_576)).toBe("1.00 MB");
   });
 });
 
@@ -37,12 +40,20 @@ describe("countLines", () => {
     expect(countLines("")).toBe(0);
   });
 
-  it("handles single line", () => {
+  it("handles single line without newline", () => {
     expect(countLines("only one line")).toBe(1);
   });
 
+  it("handles single line with newline", () => {
+    expect(countLines("only one line\n")).toBe(1);
+  });
+
   it("handles trailing newline", () => {
-    expect(countLines("line1\nline2\n")).toBe(3);
+    expect(countLines("line1\nline2\n")).toBe(2);
+  });
+
+  it("handles multiple newlines", () => {
+    expect(countLines("\n\n\n")).toBe(3);
   });
 });
 
@@ -55,6 +66,14 @@ describe("isBinaryFile", () => {
     expect(isBinaryFile("photo.jpg")).toBe(true);
   });
 
+  it("identifies JPEG as binary", () => {
+    expect(isBinaryFile("photo.jpeg")).toBe(true);
+  });
+
+  it("identifies GIF as binary", () => {
+    expect(isBinaryFile("animation.gif")).toBe(true);
+  });
+
   it("identifies JS as non-binary", () => {
     expect(isBinaryFile("file.js")).toBe(false);
   });
@@ -65,9 +84,22 @@ describe("isBinaryFile", () => {
 
   it("is case insensitive", () => {
     expect(isBinaryFile("image.PNG")).toBe(true);
+    expect(isBinaryFile("image.JPG")).toBe(true);
   });
 
   it("handles no extension", () => {
     expect(isBinaryFile("Makefile")).toBe(false);
+  });
+
+  it("handles unknown extension", () => {
+    expect(isBinaryFile("file.xyz")).toBe(false);
+  });
+
+  it("detects SVG as binary", () => {
+    expect(isBinaryFile("icon.svg")).toBe(true);
+  });
+
+  it("detects PDF as binary", () => {
+    expect(isBinaryFile("doc.pdf")).toBe(true);
   });
 });

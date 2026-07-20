@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { APP_NAME, APP_VERSION, APP_DESCRIPTION } from "./constants/index.js";
+import { APP_NAME, APP_DESCRIPTION } from "./constants/index.js";
 import {
   scanCommand,
   reportCommand,
@@ -11,17 +11,20 @@ import {
 
 const program = new Command();
 
-program.name(APP_NAME.toLowerCase()).description(APP_DESCRIPTION).version(APP_VERSION);
+program
+  .name(APP_NAME.toLowerCase())
+  .description(APP_DESCRIPTION)
+  .version("1.0.0", "-v, --version", "Output the current version");
 
 program
   .command("scan")
-  .description("Scan a repository and display analysis")
+  .description("Scan a repository and display analysis results")
   .argument("[directory]", "Directory to scan", ".")
-  .option("--json", "Output as JSON")
-  .option("--markdown", "Output as Markdown")
-  .option("--html", "Output as HTML")
-  .option("-o, --output <path>", "Save output to file")
-  .option("--verbose", "Enable verbose output")
+  .option("--json", "Output results as JSON")
+  .option("--markdown", "Output results as Markdown")
+  .option("--html", "Output results as HTML")
+  .option("-o, --output <path>", "Save output to a file")
+  .option("--verbose", "Enable verbose logging")
   .action(
     async (
       dir: string,
@@ -39,7 +42,7 @@ program
 
 program
   .command("report")
-  .description("Generate a detailed terminal report")
+  .description("Generate a detailed terminal health report")
   .argument("[directory]", "Directory to analyze", ".")
   .action(async (dir: string) => {
     await reportCommand(dir);
@@ -47,7 +50,7 @@ program
 
 program
   .command("doctor")
-  .description("Run diagnostics on a repository")
+  .description("Run diagnostics and identify issues in a repository")
   .argument("[directory]", "Directory to analyze", ".")
   .action(async (dir: string) => {
     await doctorCommand(dir);
@@ -55,28 +58,28 @@ program
 
 program
   .command("json")
-  .description("Generate a JSON report")
+  .description("Export analysis results as JSON")
   .argument("[directory]", "Directory to analyze", ".")
-  .argument("[output]", "Output file path")
-  .action(async (dir: string, output: string) => {
+  .argument("[output]", "Output file path (defaults to stdout)")
+  .action(async (dir: string, output?: string) => {
     await jsonCommand(dir, output);
   });
 
 program
   .command("markdown")
-  .description("Generate a Markdown report")
+  .description("Export analysis results as Markdown")
   .argument("[directory]", "Directory to analyze", ".")
-  .argument("[output]", "Output file path")
-  .action(async (dir: string, output: string) => {
+  .argument("[output]", "Output file path (defaults to stdout)")
+  .action(async (dir: string, output?: string) => {
     await markdownCommand(dir, output);
   });
 
 program
   .command("html")
-  .description("Generate an HTML report")
+  .description("Generate an interactive HTML report")
   .argument("[directory]", "Directory to analyze", ".")
-  .argument("[output]", "Output file path")
-  .action(async (dir: string, output: string) => {
+  .argument("[output]", "Output file path (defaults to repolens-report.html)")
+  .action(async (dir: string, output?: string) => {
     await htmlCommand(dir, output);
   });
 

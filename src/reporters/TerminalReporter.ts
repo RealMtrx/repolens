@@ -13,7 +13,7 @@ export class TerminalReporter {
     console.log(this.renderCategoryScores(report.categoryScores));
     console.log(this.renderLanguages(report.languages));
     console.log(this.renderGitStats(report));
-    console.log(this.renderIssues(report));
+    this.renderIssues(report);
     console.log(this.renderRecommendations(report.recommendations));
     console.log(this.renderFooter(report));
   }
@@ -21,30 +21,24 @@ export class TerminalReporter {
   private renderHeader(report: AnalysisReport): string {
     return boxen(
       `${chalk.bold.cyan(APP_NAME)} ${chalk.gray("v1.0.0")}\n${chalk.dim(report.projectPath)}`,
-      {
-        padding: 1,
-        margin: 1,
-        borderStyle: "round",
-        borderColor: "cyan",
-        align: "center",
-      },
+      { padding: 1, margin: 1, borderStyle: "round", borderColor: "cyan", align: "center" },
     );
   }
 
   private renderSummaryCard(report: AnalysisReport): string {
     const s = report.summary;
-    const summaryLines = [
+    const lines = [
       chalk.bold("Summary"),
       "",
-      `${chalk.dim("Files:")}      ${chalk.white(s.totalFiles.toString())}`,
-      `${chalk.dim("Folders:")}    ${chalk.white(s.totalFolders.toString())}`,
+      `${chalk.dim("Files:")}      ${chalk.white(String(s.totalFiles))}`,
+      `${chalk.dim("Folders:")}    ${chalk.white(String(s.totalFolders))}`,
       `${chalk.dim("Size:")}       ${chalk.white(formatFileSize(s.totalSize))}`,
-      `${chalk.dim("Languages:")}  ${chalk.white(s.languages.toString())}`,
-      `${chalk.dim("Commits:")}    ${chalk.white(s.commits.toString())}`,
-      `${chalk.dim("Branches:")}   ${chalk.white(s.branches.toString())}`,
-      `${chalk.dim("Score:")}      ${this.scoreToColor(report.score)(`${report.score}/100`)}`,
+      `${chalk.dim("Languages:")}  ${chalk.white(String(s.languages))}`,
+      `${chalk.dim("Commits:")}    ${chalk.white(String(s.commits))}`,
+      `${chalk.dim("Branches:")}   ${chalk.white(String(s.branches))}`,
+      `${chalk.dim("Score:")}      ${this.scoreToColor(report.score)(String(report.score) + "/100")}`,
     ];
-    return boxen(summaryLines.join("\n"), {
+    return boxen(lines.join("\n"), {
       padding: 1,
       margin: 1,
       borderStyle: "single",
@@ -56,14 +50,8 @@ export class TerminalReporter {
     const scoreColor = this.scoreToColor(report.score);
     const bar = this.renderProgressBar(report.score);
     return boxen(
-      `${chalk.bold("Project Score")}\n\n${scoreColor.bold(`${report.score}/100`)}\n${bar}`,
-      {
-        padding: 1,
-        margin: 1,
-        borderStyle: "double",
-        borderColor: "green",
-        align: "center",
-      },
+      `${chalk.bold("Project Score")}\n\n${scoreColor.bold(String(report.score) + "/100")}\n${bar}`,
+      { padding: 1, margin: 1, borderStyle: "double", borderColor: "green", align: "center" },
     );
   }
 
@@ -79,7 +67,7 @@ export class TerminalReporter {
       const indicator = this.statusIndicator(cat.status);
       table.push([
         this.capitalize(cat.name),
-        `${cat.percentage}%`,
+        `${String(cat.percentage)}%`,
         `${indicator} ${this.capitalize(cat.status)}`,
       ]);
     }
@@ -97,7 +85,7 @@ export class TerminalReporter {
       style: { head: ["cyan"] },
     });
     for (const lang of languages.slice(0, 10)) {
-      table.push([lang.language, lang.files.toString(), `${lang.percentage}%`]);
+      table.push([lang.language, String(lang.files), `${String(lang.percentage)}%`]);
     }
     return `${chalk.bold("Languages")}\n${table.toString()}\n`;
   }
@@ -108,9 +96,9 @@ export class TerminalReporter {
     }
     const stats = report.gitStats;
     const lines: string[] = [chalk.bold("Git Statistics"), ""];
-    lines.push(`${chalk.dim("Commits:")}      ${chalk.white(stats.commitCount.toString())}`);
-    lines.push(`${chalk.dim("Branches:")}     ${chalk.white(stats.branchCount.toString())}`);
-    lines.push(`${chalk.dim("Contributors:")} ${chalk.white(stats.contributorCount.toString())}`);
+    lines.push(`${chalk.dim("Commits:")}      ${chalk.white(String(stats.commitCount))}`);
+    lines.push(`${chalk.dim("Branches:")}     ${chalk.white(String(stats.branchCount))}`);
+    lines.push(`${chalk.dim("Contributors:")} ${chalk.white(String(stats.contributorCount))}`);
     if (stats.firstCommitDate) {
       lines.push(`${chalk.dim("First commit:")} ${chalk.white(stats.firstCommitDate)}`);
     }
@@ -125,11 +113,7 @@ export class TerminalReporter {
         style: { head: ["cyan"] },
       });
       for (const commit of stats.largestCommits.slice(0, 5)) {
-        table.push([
-          commit.author,
-          commit.message.substring(0, 40),
-          commit.filesChanged.toString(),
-        ]);
+        table.push([commit.author, commit.message.substring(0, 40), String(commit.filesChanged)]);
       }
       lines.push(table.toString());
     }
@@ -146,7 +130,7 @@ export class TerminalReporter {
       for (const secret of report.hardcodedSecrets) {
         table.push([
           secret.file,
-          secret.line.toString(),
+          String(secret.line),
           secret.type,
           secret.context.substring(0, 40),
         ]);
@@ -162,7 +146,7 @@ export class TerminalReporter {
         style: { head: ["yellow"] },
       });
       for (const todo of report.todoComments.slice(0, 20)) {
-        table.push([todo.file, todo.line.toString(), todo.type, todo.text.substring(0, 40)]);
+        table.push([todo.file, String(todo.line), todo.type, todo.text.substring(0, 40)]);
       }
       console.log(
         `\n${chalk.bold.yellow(`${INDICATORS.warn} TODO/FIXME Comments`)}\n${table.toString()}\n`,
@@ -192,7 +176,8 @@ export class TerminalReporter {
         style: { head: ["red"] },
       });
       for (const ci of report.circularImports) {
-        table.push([ci.file, ci.chain.join(" → ").substring(0, 60)]);
+        const chainStr = ci.chain.join(" \u2192 ");
+        table.push([ci.file, chainStr.substring(0, 60)]);
       }
       console.log(
         `\n${chalk.bold.red(`${INDICATORS.fail} Circular Imports`)}\n${table.toString()}\n`,
@@ -218,7 +203,9 @@ export class TerminalReporter {
 
   private renderFooter(report: AnalysisReport): string {
     const duration =
-      report.duration > 1000 ? `${(report.duration / 1000).toFixed(2)}s` : `${report.duration}ms`;
+      report.duration > 1000
+        ? `${(report.duration / 1000).toFixed(2)}s`
+        : `${String(report.duration)}ms`;
     return boxen(chalk.dim(`Analyzed in ${duration} at ${report.analyzedAt}`), {
       padding: 0,
       margin: 1,
@@ -231,8 +218,7 @@ export class TerminalReporter {
     const filled = Math.round((score / 100) * width);
     const empty = width - filled;
     const color = this.scoreToColor(score);
-    const bar = "\u2588".repeat(filled) + "\u2591".repeat(Math.max(0, empty));
-    return color(bar);
+    return color("\u2588".repeat(filled) + "\u2591".repeat(Math.max(0, empty)));
   }
 
   private scoreToColor(score: number): ChalkInstance {

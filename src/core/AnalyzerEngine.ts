@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Scanner } from "./Scanner.js";
 import type {
@@ -18,7 +19,7 @@ import type {
   FileInfo,
   FolderInfo,
 } from "../types/index.js";
-import { readFileContent, countLines, getDirectoryTree } from "../utils/file.js";
+import { countLines, getDirectoryTree } from "../utils/file.js";
 import {
   isGitRepository,
   getCommitCount,
@@ -30,6 +31,12 @@ import {
 } from "../utils/git.js";
 import { calculateScore, calculateCategoryScores } from "../utils/scoring.js";
 import { LANGUAGE_EXTENSIONS, ENV_FILE_NAMES, LARGE_ASSET_EXTENSIONS } from "../constants/index.js";
+
+interface AnalysisContext {
+  rootPath: string;
+  files: FileInfo[];
+  fileContents: Map<string, string>;
+}
 
 export class AnalyzerEngine {
   private readonly options: AnalysisOptions;
@@ -46,29 +53,20 @@ export class AnalyzerEngine {
 
     const { files, folders, emptyFolders } = await this.scanner.scan(rootPath);
 
-    const fileContents = new Map<string, string>();
-    for (const file of files) {
-      if (!file.isBinary) {
-        try {
-          const content = await readFileContent(path.join(rootPath, file.path));
-          fileContents.set(file.path, content);
-          file.lines = countLines(content);
-        } catch {
-          // skip files that can't be read
-        }
-      }
-    }
+    const fileContents = await this.loadFileContents(rootPath, files);
 
-    const languages = this.analyzeLanguages(files, fileContents);
+    const ctx: AnalysisContext = { rootPath, files, fileContents };
+
+    const languages = this.analyzeLanguages(files);
     const biggestFolders = this.getBiggestFolders(folders);
     const biggestFiles = this.getBiggestFiles(files);
     const duplicateFileNames = this.findDuplicateFileNames(files);
-    const circularImports = await this.findCircularImports(rootPath, files, fileContents);
-    const dependencyIssues = await this.analyzeDependencies(rootPath, files);
-    const gitStats = await this.analyzeGit(rootPath);
+    const circularImports = this.findCircularImports(ctx);
+    const dependencyIssues = await this.analyzeDependencies(ctx);
+    const gitStats = this.analyzeGit(rootPath);
     const todoComments = this.findTodoComments(fileContents);
     const hardcodedSecrets = this.findHardcodedSecrets(fileContents);
-    const largeAssets = this.findLargeAssets(files, rootPath);
+    const largeAssets = this.findLargeAssets(files);
     const binaryFiles = files.filter((f) => f.isBinary).map((f) => f.path);
     const envFiles = this.findEnvFiles(files);
     const duplicateCode = this.findDuplicateCode(fileContents);
@@ -79,18 +77,19 @@ export class AnalyzerEngine {
     const missingLicense = !files.some((f) => /^license/i.test(path.basename(f.path)));
     const missingGitignore = !files.some((f) => path.basename(f.path) === ".gitignore");
     const missingTests = !files.some(
-      (f) =>
-        /\.(test|spec)\./.test(f.path) || f.path.includes("__tests__") || f.path.includes("tests/"),
+      (f) => /\.(test|spec)\./i.test(f.path) || /\b(tests|__tests__|spec)\b/.test(f.path),
     );
-    const missingCi = !files.some(
-      (f) =>
-        f.path.includes(".github/workflows") ||
-        f.path.includes(".gitlab-ci") ||
-        f.path === ".travis.yml" ||
-        f.path === "Jenkinsfile" ||
-        f.path === "azure-pipelines.yml" ||
-        f.path === "circle.yml",
-    );
+    const missingCi = !files.some((f) => {
+      const normalizedPath = f.path.replace(/\\/g, "/");
+      return (
+        normalizedPath.includes(".github/workflows/") ||
+        normalizedPath === ".travis.yml" ||
+        normalizedPath === "Jenkinsfile" ||
+        normalizedPath === "azure-pipelines.yml" ||
+        normalizedPath === "circle.yml" ||
+        normalizedPath.endsWith(".gitlab-ci.yml")
+      );
+    });
     const documentationScore = this.calculateDocumentationScore(files, fileContents);
 
     const categoryScores = calculateCategoryScores({
@@ -215,10 +214,36 @@ export class AnalyzerEngine {
     return report;
   }
 
-  private analyzeLanguages(
+  private async loadFileContents(
+    rootPath: string,
     files: FileInfo[],
-    _fileContents: Map<string, string>,
-  ): LanguageBreakdown[] {
+  ): Promise<Map<string, string>> {
+    const contents = new Map<string, string>();
+
+    const loadTasks = files
+      .filter((f) => !f.isBinary)
+      .map(async (file) => {
+        try {
+          const fullPath = path.join(rootPath, file.path);
+          const content = await readFile(fullPath, "utf-8");
+          file.lines = countLines(content);
+          return { path: file.path, content } as const;
+        } catch {
+          return null;
+        }
+      });
+
+    const results = await Promise.all(loadTasks);
+    for (const result of results) {
+      if (result) {
+        contents.set(result.path, result.content);
+      }
+    }
+
+    return contents;
+  }
+
+  private analyzeLanguages(files: FileInfo[]): LanguageBreakdown[] {
     const langMap = new Map<string, { files: number; lines: number }>();
     for (const file of files) {
       const language =
@@ -270,13 +295,9 @@ export class AnalyzerEngine {
     return duplicates.sort((a, b) => b.count - a.count);
   }
 
-  private async findCircularImports(
-    rootPath: string,
-    files: FileInfo[],
-    fileContents: Map<string, string>,
-  ): Promise<CircularImport[]> {
-    const circularImports: CircularImport[] = [];
+  private findCircularImports(ctx: AnalysisContext): CircularImport[] {
     const importMap = new Map<string, string[]>();
+    const { rootPath, files, fileContents } = ctx;
 
     for (const file of files) {
       const content = fileContents.get(file.path);
@@ -287,33 +308,41 @@ export class AnalyzerEngine {
       if (![".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext)) {
         continue;
       }
-
       const imports = this.extractImports(content);
       importMap.set(file.path, imports);
     }
 
+    const resolvedMap = new Map<string, string[]>();
     for (const [filePath, imports] of importMap) {
+      const resolved: string[] = [];
       for (const imp of imports) {
-        const resolved = this.resolveImportPath(rootPath, filePath, imp);
-        if (!resolved) {
-          continue;
+        const r = this.resolveImportPath(rootPath, filePath, imp);
+        if (r) {
+          resolved.push(r);
         }
-        const visited = new Set<string>([filePath, resolved]);
-        const chain = [filePath, resolved];
-        if (this.detectCycle(resolved, filePath, importMap, visited, chain)) {
-          circularImports.push({ file: filePath, chain: [...chain] });
+      }
+      resolvedMap.set(filePath, resolved);
+    }
+
+    const cycles: CircularImport[] = [];
+    for (const [filePath, resolvedImports] of resolvedMap) {
+      for (const target of resolvedImports) {
+        const visited = new Set<string>([filePath]);
+        const chain: string[] = [filePath];
+        if (this.detectCycle(target, filePath, resolvedMap, visited, chain)) {
+          cycles.push({ file: filePath, chain: [...chain, target] });
         }
       }
     }
 
-    return this.deduplicateCycles(circularImports);
+    return this.deduplicateCycles(cycles);
   }
 
   private extractImports(content: string): string[] {
     const imports: string[] = [];
     const importRegex =
       /(?:import\s+(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']|require\s*\(\s*["']([^"']+)["']\s*\))/g;
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = importRegex.exec(content)) !== null) {
       const specifier = match[1] ?? match[2];
       if (specifier && (specifier.startsWith(".") || specifier.startsWith("/"))) {
@@ -348,34 +377,29 @@ export class AnalyzerEngine {
   private detectCycle(
     current: string,
     target: string,
-    importMap: Map<string, string[]>,
+    resolvedMap: Map<string, string[]>,
     visited: Set<string>,
     chain: string[],
   ): boolean {
-    const imports = importMap.get(current);
-    if (!imports) {
+    const resolved = resolvedMap.get(current);
+    if (!resolved) {
       return false;
     }
-    for (const imp of imports) {
-      const resolved = this.resolveImportPath(
-        path.dirname(path.join(process.cwd(), current)),
-        current,
-        imp,
-      );
-      if (!resolved) {
-        continue;
-      }
-      if (resolved === target) {
-        chain.push(target);
+    for (const imp of resolved) {
+      if (imp === target) {
         return true;
       }
-      if (!visited.has(resolved)) {
-        visited.add(resolved);
-        chain.push(resolved);
-        if (this.detectCycle(resolved, target, importMap, visited, chain)) {
+      if (imp === current) {
+        continue;
+      }
+      if (!visited.has(imp)) {
+        visited.add(imp);
+        chain.push(imp);
+        if (this.detectCycle(imp, target, resolvedMap, visited, chain)) {
           return true;
         }
         chain.pop();
+        visited.delete(imp);
       }
     }
     return false;
@@ -393,11 +417,9 @@ export class AnalyzerEngine {
     });
   }
 
-  private async analyzeDependencies(
-    rootPath: string,
-    files: FileInfo[],
-  ): Promise<DependencyIssue[]> {
+  private async analyzeDependencies(ctx: AnalysisContext): Promise<DependencyIssue[]> {
     const issues: DependencyIssue[] = [];
+    const { rootPath, files, fileContents } = ctx;
     const packageJsonPath = path.join(rootPath, "package.json");
 
     if (!existsSync(packageJsonPath)) {
@@ -405,38 +427,88 @@ export class AnalyzerEngine {
     }
 
     try {
-      const content = await readFileContent(packageJsonPath);
+      const content = await readFile(packageJsonPath, "utf-8");
       const pkg = JSON.parse(content) as Record<string, unknown>;
-      const deps = {
+      const dependencies: Record<string, string> = {
         ...(pkg.dependencies as Record<string, string> | undefined),
         ...(pkg.devDependencies as Record<string, string> | undefined),
       };
 
-      for (const [dep] of Object.entries(deps)) {
-        const isUsed = files.some((f) => {
-          if (f.isBinary) {
-            return false;
-          }
-          void readFileContent(path.join(rootPath, f.path));
-          return false;
-        });
-        if (!isUsed) {
-          issues.push({
-            name: dep,
-            type: "unused",
-            severity: "warning",
-            details: `Dependency "${dep}" appears to be unused`,
+      const allSource = Array.from(fileContents.values()).join("\n");
+
+      for (const [dep] of Object.entries(dependencies)) {
+        const usagePattern = new RegExp(
+          `(?:from\\s+["']${this.escapeRegex(dep)}["']|require\\s*\\(\\s*["']${this.escapeRegex(dep)}["']\\s*\\))`,
+          "g",
+        );
+
+        if (!usagePattern.test(allSource)) {
+          const isReferenced = files.some((f) => {
+            const fc = fileContents.get(f.path);
+            return fc ? fc.includes(dep) : false;
           });
+
+          if (!isReferenced) {
+            const isDev = pkg.devDependencies
+              ? (pkg.devDependencies as Record<string, string>)[dep] !== undefined
+              : false;
+            issues.push({
+              name: dep,
+              type: "unused",
+              severity: "warning",
+              details: `Dependency "${dep}" is listed in ${
+                isDev ? "devDependencies" : "dependencies"
+              } but never imported`,
+            });
+          }
+        }
+      }
+
+      const knownPackages = new Set(Object.keys(dependencies));
+      for (const [, content] of fileContents) {
+        const importRegex = /(?:from\s+["']([^"']+)["']|require\s*\(\s*["']([^"']+)["']\s*\))/g;
+        let m: RegExpExecArray | null;
+        while ((m = importRegex.exec(content)) !== null) {
+          const specifier = m[1] ?? m[2];
+          if (!specifier) {
+            continue;
+          }
+          if (specifier.startsWith(".") || specifier.startsWith("/")) {
+            continue;
+          }
+          const pkgName = specifier.startsWith("@")
+            ? specifier.split("/").slice(0, 2).join("/")
+            : (specifier.split("/")[0] ?? specifier);
+          if (!knownPackages.has(pkgName)) {
+            issues.push({
+              name: pkgName,
+              type: "missing",
+              severity: "critical",
+              details: `"${pkgName}" is imported but not listed in package.json`,
+            });
+          }
         }
       }
     } catch {
-      // skip if package.json can't be read
+      return issues;
     }
 
-    return issues.slice(0, 20);
+    const unique = new Map<string, DependencyIssue>();
+    for (const issue of issues) {
+      const key = `${issue.name}:${issue.type}`;
+      if (!unique.has(key)) {
+        unique.set(key, issue);
+      }
+    }
+
+    return Array.from(unique.values()).slice(0, 50);
   }
 
-  private async analyzeGit(rootPath: string): Promise<GitStats | null> {
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  private analyzeGit(rootPath: string): GitStats | null {
     if (!isGitRepository(rootPath)) {
       return null;
     }
@@ -547,7 +619,7 @@ export class AnalyzerEngine {
     return secrets;
   }
 
-  private findLargeAssets(files: FileInfo[], _rootPath: string): LargeAsset[] {
+  private findLargeAssets(files: FileInfo[]): LargeAsset[] {
     const largeAssets: LargeAsset[] = [];
     for (const file of files) {
       const ext = path.extname(file.path).toLowerCase();
@@ -568,11 +640,12 @@ export class AnalyzerEngine {
 
   private findDuplicateCode(fileContents: Map<string, string>): DuplicateCodeBlock[] {
     const duplicates: DuplicateCodeBlock[] = [];
-    const seen = new Map<string, { path: string; lines: string[] }[]>();
+    const seen = new Map<string, { path: string }[]>();
+    const sourceExts = new Set([".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs", ".go", ".rs"]);
 
     for (const [filePath, content] of fileContents) {
       const ext = path.extname(filePath);
-      if (![".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs", ".go", ".rs"].includes(ext)) {
+      if (!sourceExts.has(ext)) {
         continue;
       }
       const lines = content.split("\n");
@@ -585,7 +658,7 @@ export class AnalyzerEngine {
         const existing = seen.get(key);
         if (existing) {
           const isDifferentFile = existing.every((e) => e.path !== filePath);
-          if (isDifferentFile) {
+          if (isDifferentFile && duplicates.length < 10) {
             duplicates.push({
               files: [existing[0]?.path ?? "", filePath],
               lines: 6,
@@ -594,12 +667,12 @@ export class AnalyzerEngine {
             });
           }
         } else {
-          seen.set(key, [{ path: filePath, lines: lines.slice(i, i + 6) }]);
+          seen.set(key, [{ path: filePath }]);
         }
       }
     }
 
-    return duplicates.slice(0, 10);
+    return duplicates;
   }
 
   private hashBlock(block: string): string | null {
@@ -609,8 +682,7 @@ export class AnalyzerEngine {
     }
     let hash = 0;
     for (let i = 0; i < normalized.length; i++) {
-      const char = normalized.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
+      hash = (hash << 5) - hash + normalized.charCodeAt(i);
       hash |= 0;
     }
     return hash.toString(36);
@@ -621,9 +693,11 @@ export class AnalyzerEngine {
     fileContents: Map<string, string>,
   ): ComplexityMetrics[] {
     const metrics: ComplexityMetrics[] = [];
+    const sourceExts = new Set([".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs", ".go", ".rs"]);
+
     for (const file of files) {
       const ext = path.extname(file.path);
-      if (![".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs", ".go", ".rs"].includes(ext)) {
+      if (!sourceExts.has(ext)) {
         continue;
       }
       const content = fileContents.get(file.path);
@@ -745,60 +819,62 @@ export class AnalyzerEngine {
       recommendations.push("Add a README.md file to help users understand your project");
     }
     if (config.missingLicense) {
-      recommendations.push("Add a LICENSE file to specify usage terms");
+      recommendations.push("Add a LICENSE file to specify usage terms for your project");
     }
     if (config.missingGitignore) {
       recommendations.push("Add a .gitignore file to exclude build artifacts from version control");
     }
     if (config.missingTests) {
-      recommendations.push("Add test files to improve code reliability");
+      recommendations.push("Add test files to improve code reliability and catch regressions");
     }
     if (config.missingCi) {
-      recommendations.push("Set up CI/CD pipeline for automated testing and deployment");
+      recommendations.push("Set up a CI/CD pipeline for automated testing and deployment");
     }
     if (config.emptyFolders.length > 0) {
       recommendations.push(
-        `Remove ${config.emptyFolders.length} empty folder(s) to keep the project clean`,
+        `Remove ${config.emptyFolders.length} empty folder(s) to keep the project structure clean`,
       );
     }
     if (config.duplicateFileNames.length > 0) {
       recommendations.push(
-        `Resolve ${config.duplicateFileNames.length} duplicate file name(s) to avoid confusion`,
+        `Resolve ${config.duplicateFileNames.length} duplicate file name(s) to avoid confusion in imports`,
       );
     }
     if (config.circularImports.length > 0) {
       recommendations.push(
-        `Fix ${config.circularImports.length} circular import(s) to improve modularity`,
+        `Fix ${config.circularImports.length} circular import(s) to improve modularity and prevent runtime issues`,
       );
     }
     const criticalDeps = config.dependencyIssues.filter((d) => d.severity === "critical");
     if (criticalDeps.length > 0) {
-      recommendations.push(`Address ${criticalDeps.length} critical dependency issue(s)`);
+      recommendations.push(
+        `Address ${criticalDeps.length} critical dependency issue(s) by installing missing packages or removing unused ones`,
+      );
     }
     if (config.hardcodedSecrets.length > 0) {
       recommendations.push(
-        `Remove ${config.hardcodedSecrets.length} hardcoded secret(s); use environment variables instead`,
+        `Remove ${config.hardcodedSecrets.length} hardcoded secret(s); use environment variables or a secrets manager instead`,
       );
     }
     if (config.largeAssets.length > 0) {
       recommendations.push(
-        `Optimize or move ${config.largeAssets.length} large asset(s) to external storage`,
+        `Optimize or move ${config.largeAssets.length} large asset(s) to external storage or a CDN`,
       );
     }
     if (config.todoComments.length > 5) {
       recommendations.push(
-        `Address ${config.todoComments.length} TODO/FIXME comment(s) to improve code quality`,
+        `Address ${config.todoComments.length} TODO/FIXME comment(s) to improve code quality and completeness`,
       );
     }
     if (config.duplicateCode.length > 0) {
       recommendations.push(
-        `Refactor ${config.duplicateCode.length} duplicate code block(s) into shared utilities`,
+        `Refactor ${config.duplicateCode.length} duplicate code block(s) into shared utilities or modules`,
       );
     }
     const highComplexity = config.complexity.filter((c) => c.cyclomaticComplexity > 15);
     if (highComplexity.length > 0) {
       recommendations.push(
-        `Simplify ${highComplexity.length} overly complex function(s) (cyclomatic complexity > 15)`,
+        `Simplify ${highComplexity.length} overly complex function(s) with cyclomatic complexity above 15`,
       );
     }
 

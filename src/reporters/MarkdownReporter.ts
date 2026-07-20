@@ -6,13 +6,17 @@ export class MarkdownReporter {
     const sections: string[] = [];
 
     sections.push(`# RepoLens Report: ${report.projectName}\n`);
-    sections.push(`> Generated at ${report.analyzedAt} | Duration: ${report.duration}ms\n`);
+    sections.push(`> Generated at ${report.analyzedAt} | Duration: ${String(report.duration)}ms\n`);
 
     sections.push(this.renderSummary(report));
     sections.push(this.renderScore(report));
     sections.push(this.renderCategoryScores(report.categoryScores));
     sections.push(this.renderLanguages(report.languages));
-    sections.push(this.renderGitStats(report.gitStats));
+
+    if (report.gitStats) {
+      sections.push(this.renderGitStats(report));
+    }
+
     sections.push(this.renderIssues(report));
     sections.push(this.renderRecommendations(report.recommendations));
 
@@ -25,19 +29,19 @@ export class MarkdownReporter {
       "## Summary\n",
       "| Metric | Value |",
       "|--------|-------|",
-      `| Files | ${s.totalFiles} |`,
-      `| Folders | ${s.totalFolders} |`,
+      `| Files | ${String(s.totalFiles)} |`,
+      `| Folders | ${String(s.totalFolders)} |`,
       `| Total Size | ${formatFileSize(s.totalSize)} |`,
-      `| Languages | ${s.languages} |`,
-      `| Commits | ${s.commits} |`,
-      `| Branches | ${s.branches} |`,
-      `| Contributors | ${s.contributors} |`,
-      `| Overall Score | ${s.score}/100 |`,
+      `| Languages | ${String(s.languages)} |`,
+      `| Commits | ${String(s.commits)} |`,
+      `| Branches | ${String(s.branches)} |`,
+      `| Contributors | ${String(s.contributors)} |`,
+      `| Overall Score | ${String(s.score)}/100 |`,
     ].join("\n");
   }
 
   private renderScore(report: AnalysisReport): string {
-    return `## Overall Score\n\n**${report.score}/100**\n`;
+    return `## Overall Score\n\n**${String(report.score)}/100**\n`;
   }
 
   private renderCategoryScores(
@@ -46,7 +50,9 @@ export class MarkdownReporter {
     if (categories.length === 0) {
       return "";
     }
-    const rows = categories.map((c) => `| ${c.name} | ${c.percentage}% | ${c.status} |`).join("\n");
+    const rows = categories
+      .map((c) => `| ${c.name} | ${String(c.percentage)}% | ${c.status} |`)
+      .join("\n");
     return `## Category Scores\n\n| Category | Score | Status |\n|----------|-------|--------|\n${rows}\n`;
   }
 
@@ -58,33 +64,26 @@ export class MarkdownReporter {
     }
     const rows = languages
       .slice(0, 10)
-      .map((l) => `| ${l.language} | ${l.files} | ${l.percentage}% |`)
+      .map((l) => `| ${l.language} | ${String(l.files)} | ${String(l.percentage)}% |`)
       .join("\n");
     return `## Languages\n\n| Language | Files | Share |\n|----------|-------|-------|\n${rows}\n`;
   }
 
-  private renderGitStats(
-    gitStats: {
-      commitCount: number;
-      branchCount: number;
-      contributorCount: number;
-      firstCommitDate: string | null;
-      lastCommitDate: string | null;
-    } | null,
-  ): string {
-    if (!gitStats) {
-      return "## Git Statistics\n\nNo Git repository detected.\n";
-    }
-    return [
+  private renderGitStats(report: AnalysisReport): string {
+    const stats = report.gitStats!;
+    const lines = [
       "## Git Statistics\n",
-      `- **Commits:** ${gitStats.commitCount}`,
-      `- **Branches:** ${gitStats.branchCount}`,
-      `- **Contributors:** ${gitStats.contributorCount}`,
-      gitStats.firstCommitDate ? `- **First Commit:** ${gitStats.firstCommitDate}` : "",
-      gitStats.lastCommitDate ? `- **Last Commit:** ${gitStats.lastCommitDate}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+      `- **Commits:** ${String(stats.commitCount)}`,
+      `- **Branches:** ${String(stats.branchCount)}`,
+      `- **Contributors:** ${String(stats.contributorCount)}`,
+    ];
+    if (stats.firstCommitDate) {
+      lines.push(`- **First Commit:** ${stats.firstCommitDate}`);
+    }
+    if (stats.lastCommitDate) {
+      lines.push(`- **Last Commit:** ${stats.lastCommitDate}`);
+    }
+    return lines.join("\n");
   }
 
   private renderIssues(report: AnalysisReport): string {
@@ -95,7 +94,7 @@ export class MarkdownReporter {
       parts.push("| File | Line | Type |");
       parts.push("|------|------|------|");
       for (const s of report.hardcodedSecrets) {
-        parts.push(`| ${s.file} | ${s.line} | ${s.type} |`);
+        parts.push(`| ${s.file} | ${String(s.line)} | ${s.type} |`);
       }
     }
 
@@ -104,7 +103,7 @@ export class MarkdownReporter {
       parts.push("| File | Line | Type | Text |");
       parts.push("|------|------|------|------|");
       for (const t of report.todoComments.slice(0, 20)) {
-        parts.push(`| ${t.file} | ${t.line} | ${t.type} | ${t.text} |`);
+        parts.push(`| ${t.file} | ${String(t.line)} | ${t.type} | ${t.text} |`);
       }
     }
 
@@ -122,14 +121,13 @@ export class MarkdownReporter {
       parts.push("| File | Chain |");
       parts.push("|------|-------|");
       for (const c of report.circularImports) {
-        parts.push(`| ${c.file} | ${c.chain.join(" → ")} |`);
+        parts.push(`| ${c.file} | ${c.chain.join(" \u2192 ")} |`);
       }
     }
 
     if (parts.length === 0) {
       return "## Issues\n\nNo issues detected.\n";
     }
-
     return `## Issues\n\n${parts.join("\n\n")}\n`;
   }
 
