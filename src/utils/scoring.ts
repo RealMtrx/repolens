@@ -28,22 +28,28 @@ export function calculateCategoryScores(report: AnalysisReport): CategoryScore[]
 }
 
 function getScoreStatus(percentage: number): ScoreStatus {
-  if (percentage >= SCORE_THRESHOLDS.excellent) {return "excellent";}
-  if (percentage >= SCORE_THRESHOLDS.good) {return "good";}
-  if (percentage >= SCORE_THRESHOLDS.fair) {return "fair";}
-  if (percentage >= SCORE_THRESHOLDS.poor) {return "poor";}
+  if (percentage >= SCORE_THRESHOLDS.excellent) {
+    return "excellent";
+  }
+  if (percentage >= SCORE_THRESHOLDS.good) {
+    return "good";
+  }
+  if (percentage >= SCORE_THRESHOLDS.fair) {
+    return "fair";
+  }
+  if (percentage >= SCORE_THRESHOLDS.poor) {
+    return "poor";
+  }
   return "critical";
 }
 
 function calculateDocumentationScore(report: AnalysisReport): CategoryScore {
   let score = 0;
-  const checks = [
-    !report.missingReadme,
-    !report.missingLicense,
-    report.documentationScore > 0,
-  ];
+  const checks = [!report.missingReadme, !report.missingLicense, report.documentationScore > 0];
   score = checks.filter(Boolean).length * 33;
-  if (report.documentationScore > 50) {score = Math.min(100, score + 10);}
+  if (report.documentationScore > 50) {
+    score = Math.min(100, score + 10);
+  }
   return {
     name: "documentation",
     score,
@@ -55,12 +61,15 @@ function calculateDocumentationScore(report: AnalysisReport): CategoryScore {
 
 function calculateTestingScore(report: AnalysisReport): CategoryScore {
   let score = 0;
-  if (!report.missingTests) {score += 50;}
-  const testFiles = report.fileCount > 0
-    ? report.summary.totalFiles > 0
-      ? (report.fileCount / report.summary.totalFiles) * 50
-      : 0
-    : 0;
+  if (!report.missingTests) {
+    score += 50;
+  }
+  const testFiles =
+    report.fileCount > 0
+      ? report.summary.totalFiles > 0
+        ? (report.fileCount / report.summary.totalFiles) * 50
+        : 0
+      : 0;
   score += Math.min(50, Math.round(testFiles));
   return {
     name: "testing",
@@ -73,8 +82,12 @@ function calculateTestingScore(report: AnalysisReport): CategoryScore {
 
 function calculateStructureScore(report: AnalysisReport): CategoryScore {
   let score = 100;
-  if (report.emptyFolders.length > 0) {score -= report.emptyFolders.length * 5;}
-  if (report.duplicateFileNames.length > 0) {score -= report.duplicateFileNames.length * 3;}
+  if (report.emptyFolders.length > 0) {
+    score -= report.emptyFolders.length * 5;
+  }
+  if (report.duplicateFileNames.length > 0) {
+    score -= report.duplicateFileNames.length * 3;
+  }
   score = Math.max(0, score);
   return {
     name: "structure",
@@ -105,7 +118,9 @@ function calculateSecurityScore(report: AnalysisReport): CategoryScore {
   for (const _secret of report.hardcodedSecrets) {
     score -= 20;
   }
-  if (report.envFiles.length > 0) {score -= 10;}
+  if (report.envFiles.length > 0) {
+    score -= 10;
+  }
   score = Math.max(0, score);
   return {
     name: "security",
@@ -118,7 +133,9 @@ function calculateSecurityScore(report: AnalysisReport): CategoryScore {
 
 function calculateMaintainabilityScore(report: AnalysisReport): CategoryScore {
   let score = 100;
-  if (report.todoComments.length > 5) {score -= 10;}
+  if (report.todoComments.length > 5) {
+    score -= 10;
+  }
   if (report.duplicateCode.length > 0) {
     score -= report.duplicateCode.length * 5;
   }
@@ -137,7 +154,9 @@ function calculatePerformanceScore(report: AnalysisReport): CategoryScore {
   if (report.largeAssets.length > 0) {
     score -= report.largeAssets.length * 5;
   }
-  if (report.binaryFiles.length > 10) {score -= 10;}
+  if (report.binaryFiles.length > 10) {
+    score -= 10;
+  }
   score = Math.max(0, score);
   return {
     name: "performance",
@@ -157,8 +176,12 @@ function calculateCodeQualityScore(report: AnalysisReport): CategoryScore {
   if (complexFiles.length > 0) {
     score -= complexFiles.length * 5;
   }
-  if (!report.missingGitignore) {score += 5;}
-  if (!report.missingCi) {score += 5;}
+  if (!report.missingGitignore) {
+    score += 5;
+  }
+  if (!report.missingCi) {
+    score += 5;
+  }
   score = Math.max(0, Math.min(100, score));
   return {
     name: "codeQuality",

@@ -43,17 +43,19 @@ export class MarkdownReporter {
   private renderCategoryScores(
     categories: { name: string; percentage: number; status: string }[],
   ): string {
-    if (categories.length === 0) {return "";}
-    const rows = categories
-      .map((c) => `| ${c.name} | ${c.percentage}% | ${c.status} |`)
-      .join("\n");
+    if (categories.length === 0) {
+      return "";
+    }
+    const rows = categories.map((c) => `| ${c.name} | ${c.percentage}% | ${c.status} |`).join("\n");
     return `## Category Scores\n\n| Category | Score | Status |\n|----------|-------|--------|\n${rows}\n`;
   }
 
   private renderLanguages(
     languages: { language: string; files: number; percentage: number }[],
   ): string {
-    if (languages.length === 0) {return "";}
+    if (languages.length === 0) {
+      return "";
+    }
     const rows = languages
       .slice(0, 10)
       .map((l) => `| ${l.language} | ${l.files} | ${l.percentage}% |`)
@@ -70,7 +72,9 @@ export class MarkdownReporter {
       lastCommitDate: string | null;
     } | null,
   ): string {
-    if (!gitStats) {return "## Git Statistics\n\nNo Git repository detected.\n";}
+    if (!gitStats) {
+      return "## Git Statistics\n\nNo Git repository detected.\n";
+    }
     return [
       "## Git Statistics\n",
       `- **Commits:** ${gitStats.commitCount}`,
@@ -122,13 +126,17 @@ export class MarkdownReporter {
       }
     }
 
-    if (parts.length === 0) {return "## Issues\n\nNo issues detected.\n";}
+    if (parts.length === 0) {
+      return "## Issues\n\nNo issues detected.\n";
+    }
 
     return `## Issues\n\n${parts.join("\n\n")}\n`;
   }
 
   private renderRecommendations(recommendations: string[]): string {
-    if (recommendations.length === 0) {return "## Recommendations\n\nNo recommendations.\n";}
+    if (recommendations.length === 0) {
+      return "## Recommendations\n\nNo recommendations.\n";
+    }
     const items = recommendations.map((r) => `- ${r}`).join("\n");
     return `## Recommendations\n\n${items}\n`;
   }

@@ -11,10 +11,7 @@ import {
 
 const program = new Command();
 
-program
-  .name(APP_NAME.toLowerCase())
-  .description(APP_DESCRIPTION)
-  .version(APP_VERSION);
+program.name(APP_NAME.toLowerCase()).description(APP_DESCRIPTION).version(APP_VERSION);
 
 program
   .command("scan")
@@ -25,9 +22,20 @@ program
   .option("--html", "Output as HTML")
   .option("-o, --output <path>", "Save output to file")
   .option("--verbose", "Enable verbose output")
-  .action(async (dir: string, opts: { json?: boolean; markdown?: boolean; html?: boolean; output?: string; verbose?: boolean }) => {
-    await scanCommand(dir, opts);
-  });
+  .action(
+    async (
+      dir: string,
+      opts: {
+        json?: boolean;
+        markdown?: boolean;
+        html?: boolean;
+        output?: string;
+        verbose?: boolean;
+      },
+    ) => {
+      await scanCommand(dir, opts);
+    },
+  );
 
 program
   .command("report")

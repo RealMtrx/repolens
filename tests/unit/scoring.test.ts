@@ -88,9 +88,9 @@ describe("calculateCategoryScores", () => {
     const clean = createMockReport();
     const dirty = createMockReport({
       hardcodedSecrets: [
-        { file: "config.ts", line: 1, type: "aws-key", context: "AKIA...", },
-        { file: "config.ts", line: 2, type: "github-token", context: "ghp_...", },
-        { file: "config.ts", line: 3, type: "password", context: "password=...", },
+        { file: "config.ts", line: 1, type: "aws-key", context: "AKIA..." },
+        { file: "config.ts", line: 2, type: "github-token", context: "ghp_..." },
+        { file: "config.ts", line: 3, type: "password", context: "password=..." },
       ],
     });
     const cleanScores = calculateCategoryScores(clean);
@@ -133,12 +133,8 @@ describe("calculateScore", () => {
       missingGitignore: true,
       missingTests: true,
       missingCi: true,
-      hardcodedSecrets: [
-        { file: "config.ts", line: 1, type: "aws-key", context: "AKIA...", },
-      ],
-      circularImports: [
-        { file: "a.ts", chain: ["a.ts", "b.ts", "a.ts"], },
-      ],
+      hardcodedSecrets: [{ file: "config.ts", line: 1, type: "aws-key", context: "AKIA..." }],
+      circularImports: [{ file: "a.ts", chain: ["a.ts", "b.ts", "a.ts"] }],
       emptyFolders: ["empty"],
     });
     const cleanScore = calculateScore(clean);

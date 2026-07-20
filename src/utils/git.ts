@@ -30,7 +30,10 @@ export function getBranchCount(repoPath: string): number {
       encoding: "utf-8",
       stdio: "pipe",
     });
-    return result.trim().split("\n").filter((l) => l.length > 0).length;
+    return result
+      .trim()
+      .split("\n")
+      .filter((l) => l.length > 0).length;
   } catch {
     return 0;
   }
@@ -45,7 +48,9 @@ export function getContributors(repoPath: string): ContributorInfo[] {
     });
     const counts = new Map<string, { name: string; email: string; count: number }>();
     for (const line of result.trim().split("\n")) {
-      if (!line) {continue;}
+      if (!line) {
+        continue;
+      }
       const [name, email] = line.split("|");
       const key = `${name ?? ""}:${email ?? ""}`;
       const existing = counts.get(key);
@@ -69,16 +74,19 @@ export function getContributors(repoPath: string): ContributorInfo[] {
 
 export function getLargestCommits(repoPath: string, limit = 10): LargeCommit[] {
   try {
-    const result = execSync(
-      'git log --all --format="---%n%H|%an|%s|%ai" --shortstat',
-      { cwd: repoPath, encoding: "utf-8", stdio: "pipe" },
-    );
+    const result = execSync('git log --all --format="---%n%H|%an|%s|%ai" --shortstat', {
+      cwd: repoPath,
+      encoding: "utf-8",
+      stdio: "pipe",
+    });
     const commits: LargeCommit[] = [];
     const blocks = result.split("---\n").filter((b) => b.trim().length > 0);
     for (const block of blocks) {
       const lines = block.trim().split("\n");
       const header = lines[0];
-      if (!header) {continue;}
+      if (!header) {
+        continue;
+      }
       const [hash, author, ...rest] = header.split("|");
       const date = rest.pop() ?? "";
       const message = rest.join("|");

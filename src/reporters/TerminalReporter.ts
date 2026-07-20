@@ -68,7 +68,9 @@ export class TerminalReporter {
   }
 
   private renderCategoryScores(categories: CategoryScore[]): string {
-    if (categories.length === 0) {return "";}
+    if (categories.length === 0) {
+      return "";
+    }
     const table = new Table({
       head: ["Category", "Score", "Status"],
       style: { head: ["cyan"] },
@@ -87,7 +89,9 @@ export class TerminalReporter {
   private renderLanguages(
     languages: { language: string; files: number; percentage: number }[],
   ): string {
-    if (languages.length === 0) {return "";}
+    if (languages.length === 0) {
+      return "";
+    }
     const table = new Table({
       head: ["Language", "Files", "Share"],
       style: { head: ["cyan"] },
@@ -99,7 +103,9 @@ export class TerminalReporter {
   }
 
   private renderGitStats(report: AnalysisReport): string {
-    if (!report.gitStats) {return "";}
+    if (!report.gitStats) {
+      return "";
+    }
     const stats = report.gitStats;
     const lines: string[] = [chalk.bold("Git Statistics"), ""];
     lines.push(`${chalk.dim("Commits:")}      ${chalk.white(stats.commitCount.toString())}`);
@@ -145,7 +151,9 @@ export class TerminalReporter {
           secret.context.substring(0, 40),
         ]);
       }
-      console.log(`\n${chalk.bold.red(`${INDICATORS.fail} Hardcoded Secrets Detected`)}\n${table.toString()}\n`);
+      console.log(
+        `\n${chalk.bold.red(`${INDICATORS.fail} Hardcoded Secrets Detected`)}\n${table.toString()}\n`,
+      );
     }
 
     if (report.todoComments.length > 0) {
@@ -156,7 +164,9 @@ export class TerminalReporter {
       for (const todo of report.todoComments.slice(0, 20)) {
         table.push([todo.file, todo.line.toString(), todo.type, todo.text.substring(0, 40)]);
       }
-      console.log(`\n${chalk.bold.yellow(`${INDICATORS.warn} TODO/FIXME Comments`)}\n${table.toString()}\n`);
+      console.log(
+        `\n${chalk.bold.yellow(`${INDICATORS.warn} TODO/FIXME Comments`)}\n${table.toString()}\n`,
+      );
     }
 
     if (report.dependencyIssues.length > 0) {
@@ -171,7 +181,9 @@ export class TerminalReporter {
           dep.severity === "critical" ? chalk.red(dep.severity) : chalk.yellow(dep.severity),
         ]);
       }
-      console.log(`\n${chalk.bold.yellow(`${INDICATORS.warn} Dependency Issues`)}\n${table.toString()}\n`);
+      console.log(
+        `\n${chalk.bold.yellow(`${INDICATORS.warn} Dependency Issues`)}\n${table.toString()}\n`,
+      );
     }
 
     if (report.circularImports.length > 0) {
@@ -182,27 +194,37 @@ export class TerminalReporter {
       for (const ci of report.circularImports) {
         table.push([ci.file, ci.chain.join(" → ").substring(0, 60)]);
       }
-      console.log(`\n${chalk.bold.red(`${INDICATORS.fail} Circular Imports`)}\n${table.toString()}\n`);
+      console.log(
+        `\n${chalk.bold.red(`${INDICATORS.fail} Circular Imports`)}\n${table.toString()}\n`,
+      );
     }
   }
 
   private renderRecommendations(recommendations: string[]): string {
-    if (recommendations.length === 0) {return "";}
+    if (recommendations.length === 0) {
+      return "";
+    }
     const lines = [chalk.bold.green(`${INDICATORS.star} Recommendations`), ""];
     for (const rec of recommendations) {
       lines.push(`  ${INDICATORS.arrow} ${rec}`);
     }
-    return boxen(lines.join("\n"), { padding: 1, margin: 1, borderStyle: "single", borderColor: "green" });
+    return boxen(lines.join("\n"), {
+      padding: 1,
+      margin: 1,
+      borderStyle: "single",
+      borderColor: "green",
+    });
   }
 
   private renderFooter(report: AnalysisReport): string {
-    const duration = report.duration > 1000
-      ? `${(report.duration / 1000).toFixed(2)}s`
-      : `${report.duration}ms`;
-    return boxen(
-      chalk.dim(`Analyzed in ${duration} at ${report.analyzedAt}`),
-      { padding: 0, margin: 1, borderStyle: "single", borderColor: "gray" },
-    );
+    const duration =
+      report.duration > 1000 ? `${(report.duration / 1000).toFixed(2)}s` : `${report.duration}ms`;
+    return boxen(chalk.dim(`Analyzed in ${duration} at ${report.analyzedAt}`), {
+      padding: 0,
+      margin: 1,
+      borderStyle: "single",
+      borderColor: "gray",
+    });
   }
 
   private renderProgressBar(score: number, width = 20): string {
@@ -214,8 +236,12 @@ export class TerminalReporter {
   }
 
   private scoreToColor(score: number): ChalkInstance {
-    if (score >= 80) {return chalk.green;}
-    if (score >= 60) {return chalk.yellow;}
+    if (score >= 80) {
+      return chalk.green;
+    }
+    if (score >= 60) {
+      return chalk.yellow;
+    }
     return chalk.red;
   }
 

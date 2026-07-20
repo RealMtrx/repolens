@@ -14,7 +14,7 @@
   "license": "MIT",
   "author": {
     "name": "RepoLens Contributors",
-    "url": "https://github.com/repolens/repolens"
+    "url": "https://github.com/RealMtrx/repolens"
   },
   "type": "module",
   "bin": {
@@ -26,6 +26,7 @@
     "README.md",
     "LICENSE"
   ],
+  "homepage": "https://github.com/RealMtrx/repolens#readme",
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -65,7 +66,7 @@
     "vitest": "^3.1.1"
   },
   "lint-staged": {
-    "*.ts": [
+    "src/**/*.ts": [
       "eslint --fix --max-warnings 0",
       "prettier --write"
     ],
@@ -81,10 +82,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/repolens/repolens.git"
+    "url": "https://github.com/RealMtrx/repolens.git"
   },
   "bugs": {
-    "url": "https://github.com/repolens/repolens/issues"
-  },
-  "homepage": "https://github.com/repolens/repolens#readme"
+    "url": "https://github.com/RealMtrx/repolens/issues"
+  }
 }

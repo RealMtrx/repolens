@@ -37,7 +37,9 @@ export function formatFileSize(bytes: number): string {
 }
 
 export function countLines(content: string): number {
-  if (content.length === 0) {return 0;}
+  if (content.length === 0) {
+    return 0;
+  }
   return content.split("\n").length;
 }
 
@@ -52,15 +54,21 @@ export async function getDirectoryTree(
     return !excludePatterns.some((pattern) => matchGlob(fullPath, pattern));
   });
   filtered.sort((a, b) => {
-    if (a.isDirectory() && !b.isDirectory()) {return -1;}
-    if (!a.isDirectory() && b.isDirectory()) {return 1;}
+    if (a.isDirectory() && !b.isDirectory()) {
+      return -1;
+    }
+    if (!a.isDirectory() && b.isDirectory()) {
+      return 1;
+    }
     return a.name.localeCompare(b.name);
   });
 
   let result = "";
   for (let i = 0; i < filtered.length; i++) {
     const entry = filtered[i];
-    if (!entry) {continue;}
+    if (!entry) {
+      continue;
+    }
     const isLast = i === filtered.length - 1;
     const connector = isLast ? "\u2514\u2500\u2500 " : "\u251C\u2500\u2500 ";
     const fullPath = path.join(dirPath, entry.name);
@@ -85,9 +93,13 @@ function matchGlob(filePath: string, pattern: string): boolean {
 export function findProjectRoot(startPath: string): string {
   let current = path.resolve(startPath);
   while (true) {
-    if (current === path.parse(current).root) {return current;}
+    if (current === path.parse(current).root) {
+      return current;
+    }
     const gitDir = path.join(current, ".git");
-    if (existsSync(gitDir)) {return current;}
+    if (existsSync(gitDir)) {
+      return current;
+    }
     current = path.dirname(current);
   }
 }

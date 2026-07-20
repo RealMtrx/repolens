@@ -8,7 +8,13 @@ import { HtmlReporter } from "../reporters/HtmlReporter.js";
 
 export async function scanCommand(
   dir: string,
-  options: { json?: boolean; markdown?: boolean; html?: boolean; output?: string; verbose?: boolean },
+  options: {
+    json?: boolean;
+    markdown?: boolean;
+    html?: boolean;
+    output?: string;
+    verbose?: boolean;
+  },
 ): Promise<void> {
   const targetPath = dir ?? ".";
   const analysisOptions = AnalysisOptionsModel.create({
@@ -95,19 +101,45 @@ export async function doctorCommand(dir?: string): Promise<void> {
     spinner.succeed("Diagnostics complete");
 
     const issues = [
-      ...report.hardcodedSecrets.map((s) => ({ type: "critical" as const, message: `Hardcoded secret: ${s.type} in ${s.file}` })),
-      ...report.circularImports.map((c) => ({ type: "critical" as const, message: `Circular import in ${c.file}` })),
-      ...report.dependencyIssues.filter((d) => d.severity === "critical").map((d) => ({ type: "critical" as const, message: `${d.name}: ${d.details}` })),
-      ...report.dependencyIssues.filter((d) => d.severity === "warning").map((d) => ({ type: "warning" as const, message: `${d.name}: ${d.details}` })),
-      ...report.todoComments.map((t) => ({ type: "warning" as const, message: `${t.type} in ${t.file}:${t.line}` })),
-      ...report.emptyFolders.map((f) => ({ type: "warning" as const, message: `Empty folder: ${f}` })),
+      ...report.hardcodedSecrets.map((s) => ({
+        type: "critical" as const,
+        message: `Hardcoded secret: ${s.type} in ${s.file}`,
+      })),
+      ...report.circularImports.map((c) => ({
+        type: "critical" as const,
+        message: `Circular import in ${c.file}`,
+      })),
+      ...report.dependencyIssues
+        .filter((d) => d.severity === "critical")
+        .map((d) => ({ type: "critical" as const, message: `${d.name}: ${d.details}` })),
+      ...report.dependencyIssues
+        .filter((d) => d.severity === "warning")
+        .map((d) => ({ type: "warning" as const, message: `${d.name}: ${d.details}` })),
+      ...report.todoComments.map((t) => ({
+        type: "warning" as const,
+        message: `${t.type} in ${t.file}:${t.line}`,
+      })),
+      ...report.emptyFolders.map((f) => ({
+        type: "warning" as const,
+        message: `Empty folder: ${f}`,
+      })),
     ];
 
-    if (report.missingReadme) {issues.push({ type: "warning", message: "Missing README.md" });}
-    if (report.missingLicense) {issues.push({ type: "warning", message: "Missing LICENSE" });}
-    if (report.missingGitignore) {issues.push({ type: "warning", message: "Missing .gitignore" });}
-    if (report.missingTests) {issues.push({ type: "warning", message: "Missing tests" });}
-    if (report.missingCi) {issues.push({ type: "warning", message: "Missing CI configuration" });}
+    if (report.missingReadme) {
+      issues.push({ type: "warning", message: "Missing README.md" });
+    }
+    if (report.missingLicense) {
+      issues.push({ type: "warning", message: "Missing LICENSE" });
+    }
+    if (report.missingGitignore) {
+      issues.push({ type: "warning", message: "Missing .gitignore" });
+    }
+    if (report.missingTests) {
+      issues.push({ type: "warning", message: "Missing tests" });
+    }
+    if (report.missingCi) {
+      issues.push({ type: "warning", message: "Missing CI configuration" });
+    }
 
     console.log(`\n${"=".repeat(50)}`);
     console.log(`RepoLens Doctor Report for ${report.projectName}`);

@@ -18,11 +18,7 @@ import type {
   FileInfo,
   FolderInfo,
 } from "../types/index.js";
-import {
-  readFileContent,
-  countLines,
-  getDirectoryTree,
-} from "../utils/file.js";
+import { readFileContent, countLines, getDirectoryTree } from "../utils/file.js";
 import {
   isGitRepository,
   getCommitCount,
@@ -82,8 +78,19 @@ export class AnalyzerEngine {
     const missingReadme = !files.some((f) => /^readme\./i.test(path.basename(f.path)));
     const missingLicense = !files.some((f) => /^license/i.test(path.basename(f.path)));
     const missingGitignore = !files.some((f) => path.basename(f.path) === ".gitignore");
-    const missingTests = !files.some((f) => /\.(test|spec)\./.test(f.path) || f.path.includes("__tests__") || f.path.includes("tests/"));
-    const missingCi = !files.some((f) => f.path.includes(".github/workflows") || f.path.includes(".gitlab-ci") || f.path === ".travis.yml" || f.path === "Jenkinsfile" || f.path === "azure-pipelines.yml" || f.path === "circle.yml");
+    const missingTests = !files.some(
+      (f) =>
+        /\.(test|spec)\./.test(f.path) || f.path.includes("__tests__") || f.path.includes("tests/"),
+    );
+    const missingCi = !files.some(
+      (f) =>
+        f.path.includes(".github/workflows") ||
+        f.path.includes(".gitlab-ci") ||
+        f.path === ".travis.yml" ||
+        f.path === "Jenkinsfile" ||
+        f.path === "azure-pipelines.yml" ||
+        f.path === "circle.yml",
+    );
     const documentationScore = this.calculateDocumentationScore(files, fileContents);
 
     const categoryScores = calculateCategoryScores({
@@ -133,8 +140,16 @@ export class AnalyzerEngine {
       contributors: gitStats?.contributorCount ?? 0,
       commits: gitStats?.commitCount ?? 0,
       branches: gitStats?.branchCount ?? 0,
-      issues: circularImports.length + dependencyIssues.filter((d) => d.severity === "critical").length + hardcodedSecrets.length,
-      warnings: dependencyIssues.filter((d) => d.severity === "warning").length + todoComments.length + duplicateFileNames.length + emptyFolders.length + largeAssets.length,
+      issues:
+        circularImports.length +
+        dependencyIssues.filter((d) => d.severity === "critical").length +
+        hardcodedSecrets.length,
+      warnings:
+        dependencyIssues.filter((d) => d.severity === "warning").length +
+        todoComments.length +
+        duplicateFileNames.length +
+        emptyFolders.length +
+        largeAssets.length,
       errors: 0,
       score: 0,
     };
@@ -206,7 +221,8 @@ export class AnalyzerEngine {
   ): LanguageBreakdown[] {
     const langMap = new Map<string, { files: number; lines: number }>();
     for (const file of files) {
-      const language = LANGUAGE_EXTENSIONS[file.extension] ?? (file.extension.slice(1).toUpperCase() || "Unknown");
+      const language =
+        LANGUAGE_EXTENSIONS[file.extension] ?? (file.extension.slice(1).toUpperCase() || "Unknown");
       const existing = langMap.get(language);
       if (existing) {
         existing.files++;
@@ -264,9 +280,13 @@ export class AnalyzerEngine {
 
     for (const file of files) {
       const content = fileContents.get(file.path);
-      if (!content) {continue;}
+      if (!content) {
+        continue;
+      }
       const ext = path.extname(file.path);
-      if (![".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext)) {continue;}
+      if (![".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext)) {
+        continue;
+      }
 
       const imports = this.extractImports(content);
       importMap.set(file.path, imports);
@@ -275,7 +295,9 @@ export class AnalyzerEngine {
     for (const [filePath, imports] of importMap) {
       for (const imp of imports) {
         const resolved = this.resolveImportPath(rootPath, filePath, imp);
-        if (!resolved) {continue;}
+        if (!resolved) {
+          continue;
+        }
         const visited = new Set<string>([filePath, resolved]);
         const chain = [filePath, resolved];
         if (this.detectCycle(resolved, filePath, importMap, visited, chain)) {
@@ -312,7 +334,9 @@ export class AnalyzerEngine {
     for (const ext of extensions) {
       const fullPath = resolved + ext;
       const relativePath = path.relative(rootPath, fullPath).replace(/\\/g, "/");
-      if (existsSync(fullPath)) {return relativePath;}
+      if (existsSync(fullPath)) {
+        return relativePath;
+      }
       const indexFile = path.join(resolved, `index${ext}`);
       if (existsSync(indexFile)) {
         return path.relative(rootPath, indexFile).replace(/\\/g, "/");
@@ -329,14 +353,18 @@ export class AnalyzerEngine {
     chain: string[],
   ): boolean {
     const imports = importMap.get(current);
-    if (!imports) {return false;}
+    if (!imports) {
+      return false;
+    }
     for (const imp of imports) {
       const resolved = this.resolveImportPath(
         path.dirname(path.join(process.cwd(), current)),
         current,
         imp,
       );
-      if (!resolved) {continue;}
+      if (!resolved) {
+        continue;
+      }
       if (resolved === target) {
         chain.push(target);
         return true;
@@ -357,7 +385,9 @@ export class AnalyzerEngine {
     const seen = new Set<string>();
     return cycles.filter((c) => {
       const key = c.file;
-      if (seen.has(key)) {return false;}
+      if (seen.has(key)) {
+        return false;
+      }
       seen.add(key);
       return true;
     });
@@ -370,7 +400,9 @@ export class AnalyzerEngine {
     const issues: DependencyIssue[] = [];
     const packageJsonPath = path.join(rootPath, "package.json");
 
-    if (!existsSync(packageJsonPath)) {return issues;}
+    if (!existsSync(packageJsonPath)) {
+      return issues;
+    }
 
     try {
       const content = await readFileContent(packageJsonPath);
@@ -382,7 +414,9 @@ export class AnalyzerEngine {
 
       for (const [dep] of Object.entries(deps)) {
         const isUsed = files.some((f) => {
-          if (f.isBinary) {return false;}
+          if (f.isBinary) {
+            return false;
+          }
           void readFileContent(path.join(rootPath, f.path));
           return false;
         });
@@ -403,7 +437,9 @@ export class AnalyzerEngine {
   }
 
   private async analyzeGit(rootPath: string): Promise<GitStats | null> {
-    if (!isGitRepository(rootPath)) {return null;}
+    if (!isGitRepository(rootPath)) {
+      return null;
+    }
 
     return {
       commitCount: getCommitCount(rootPath),
@@ -421,11 +457,15 @@ export class AnalyzerEngine {
     const regex = /\b(TODO|FIXME|HACK|XXX)\b[:\s]*(.*)$/gm;
 
     for (const [filePath, content] of fileContents) {
-      if (filePath.includes("node_modules")) {continue;}
+      if (filePath.includes("node_modules")) {
+        continue;
+      }
       const lines = content.split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (!line) {continue;}
+        if (!line) {
+          continue;
+        }
         regex.lastIndex = 0;
         const match = regex.exec(line);
         if (match) {
@@ -451,7 +491,8 @@ export class AnalyzerEngine {
       },
       {
         type: "aws-key",
-        regex: /(?:AKIA[0-9A-Z]{16}|(?:aws_access_key_id|aws_secret_access_key)\s*[:=]\s*["']?[A-Za-z0-9/+=]{16,})/,
+        regex:
+          /(?:AKIA[0-9A-Z]{16}|(?:aws_access_key_id|aws_secret_access_key)\s*[:=]\s*["']?[A-Za-z0-9/+=]{16,})/,
       },
       {
         type: "github-token",
@@ -480,11 +521,15 @@ export class AnalyzerEngine {
     ];
 
     for (const [filePath, content] of fileContents) {
-      if (filePath.includes("node_modules") || filePath.includes(".git")) {continue;}
+      if (filePath.includes("node_modules") || filePath.includes(".git")) {
+        continue;
+      }
       const lines = content.split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (!line) {continue;}
+        if (!line) {
+          continue;
+        }
         for (const { type, regex } of patterns) {
           regex.lastIndex = 0;
           if (regex.test(line)) {
@@ -518,9 +563,7 @@ export class AnalyzerEngine {
   }
 
   private findEnvFiles(files: FileInfo[]): string[] {
-    return files
-      .filter((f) => ENV_FILE_NAMES.has(path.basename(f.path)))
-      .map((f) => f.path);
+    return files.filter((f) => ENV_FILE_NAMES.has(path.basename(f.path))).map((f) => f.path);
   }
 
   private findDuplicateCode(fileContents: Map<string, string>): DuplicateCodeBlock[] {
@@ -529,13 +572,16 @@ export class AnalyzerEngine {
 
     for (const [filePath, content] of fileContents) {
       const ext = path.extname(filePath);
-      if (![".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs", ".go", ".rs"].includes(ext))
-        {continue;}
+      if (![".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs", ".go", ".rs"].includes(ext)) {
+        continue;
+      }
       const lines = content.split("\n");
       for (let i = 0; i < lines.length - 5; i++) {
         const block = lines.slice(i, i + 6).join("\n");
         const key = this.hashBlock(block);
-        if (!key) {continue;}
+        if (!key) {
+          continue;
+        }
         const existing = seen.get(key);
         if (existing) {
           const isDifferentFile = existing.every((e) => e.path !== filePath);
@@ -558,7 +604,9 @@ export class AnalyzerEngine {
 
   private hashBlock(block: string): string | null {
     const normalized = block.replace(/^\s+/gm, "").replace(/\s+$/gm, "");
-    if (normalized.length < 30) {return null;}
+    if (normalized.length < 30) {
+      return null;
+    }
     let hash = 0;
     for (let i = 0; i < normalized.length; i++) {
       const char = normalized.charCodeAt(i);
@@ -575,10 +623,13 @@ export class AnalyzerEngine {
     const metrics: ComplexityMetrics[] = [];
     for (const file of files) {
       const ext = path.extname(file.path);
-      if (![".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs", ".go", ".rs"].includes(ext))
-        {continue;}
+      if (![".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs", ".go", ".rs"].includes(ext)) {
+        continue;
+      }
       const content = fileContents.get(file.path);
-      if (!content) {continue;}
+      if (!content) {
+        continue;
+      }
       const lines = content.split("\n");
       const codeLines = lines.filter(
         (l) => l.trim().length > 0 && !l.trim().startsWith("//") && !l.trim().startsWith("#"),
@@ -613,7 +664,9 @@ export class AnalyzerEngine {
     let complexity = 1;
     for (const regex of decisionPoints) {
       const matches = content.match(regex);
-      if (matches) {complexity += matches.length;}
+      if (matches) {
+        complexity += matches.length;
+      }
     }
     return complexity;
   }
@@ -704,33 +757,49 @@ export class AnalyzerEngine {
       recommendations.push("Set up CI/CD pipeline for automated testing and deployment");
     }
     if (config.emptyFolders.length > 0) {
-      recommendations.push(`Remove ${config.emptyFolders.length} empty folder(s) to keep the project clean`);
+      recommendations.push(
+        `Remove ${config.emptyFolders.length} empty folder(s) to keep the project clean`,
+      );
     }
     if (config.duplicateFileNames.length > 0) {
-      recommendations.push(`Resolve ${config.duplicateFileNames.length} duplicate file name(s) to avoid confusion`);
+      recommendations.push(
+        `Resolve ${config.duplicateFileNames.length} duplicate file name(s) to avoid confusion`,
+      );
     }
     if (config.circularImports.length > 0) {
-      recommendations.push(`Fix ${config.circularImports.length} circular import(s) to improve modularity`);
+      recommendations.push(
+        `Fix ${config.circularImports.length} circular import(s) to improve modularity`,
+      );
     }
     const criticalDeps = config.dependencyIssues.filter((d) => d.severity === "critical");
     if (criticalDeps.length > 0) {
       recommendations.push(`Address ${criticalDeps.length} critical dependency issue(s)`);
     }
     if (config.hardcodedSecrets.length > 0) {
-      recommendations.push(`Remove ${config.hardcodedSecrets.length} hardcoded secret(s); use environment variables instead`);
+      recommendations.push(
+        `Remove ${config.hardcodedSecrets.length} hardcoded secret(s); use environment variables instead`,
+      );
     }
     if (config.largeAssets.length > 0) {
-      recommendations.push(`Optimize or move ${config.largeAssets.length} large asset(s) to external storage`);
+      recommendations.push(
+        `Optimize or move ${config.largeAssets.length} large asset(s) to external storage`,
+      );
     }
     if (config.todoComments.length > 5) {
-      recommendations.push(`Address ${config.todoComments.length} TODO/FIXME comment(s) to improve code quality`);
+      recommendations.push(
+        `Address ${config.todoComments.length} TODO/FIXME comment(s) to improve code quality`,
+      );
     }
     if (config.duplicateCode.length > 0) {
-      recommendations.push(`Refactor ${config.duplicateCode.length} duplicate code block(s) into shared utilities`);
+      recommendations.push(
+        `Refactor ${config.duplicateCode.length} duplicate code block(s) into shared utilities`,
+      );
     }
     const highComplexity = config.complexity.filter((c) => c.cyclomaticComplexity > 15);
     if (highComplexity.length > 0) {
-      recommendations.push(`Simplify ${highComplexity.length} overly complex function(s) (cyclomatic complexity > 15)`);
+      recommendations.push(
+        `Simplify ${highComplexity.length} overly complex function(s) (cyclomatic complexity > 15)`,
+      );
     }
 
     return recommendations;

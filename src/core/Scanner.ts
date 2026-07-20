@@ -10,10 +10,9 @@ export class Scanner {
 
   constructor(options: AnalysisOptions) {
     this.options = options;
-    this.excludePatterns = [
-      ...DEFAULT_EXCLUDE_PATTERNS,
-      ...options.excludePatterns,
-    ].map((p) => this.patternToRegex(p));
+    this.excludePatterns = [...DEFAULT_EXCLUDE_PATTERNS, ...options.excludePatterns].map((p) =>
+      this.patternToRegex(p),
+    );
   }
 
   async scan(rootPath: string): Promise<{
@@ -61,7 +60,9 @@ export class Scanner {
       const fullPath = path.join(dirPath, entry);
       const relativePath = path.relative(rootPath, fullPath);
 
-      if (this.shouldExclude(relativePath)) {continue;}
+      if (this.shouldExclude(relativePath)) {
+        continue;
+      }
 
       let stat;
       try {
@@ -120,10 +121,16 @@ export class Scanner {
   static findProjectRoot(startPath: string): string {
     let current = path.resolve(startPath);
     while (true) {
-      if (current === path.parse(current).root) {return startPath;}
-      if (existsSync(path.join(current, ".git"))) {return current;}
+      if (current === path.parse(current).root) {
+        return startPath;
+      }
+      if (existsSync(path.join(current, ".git"))) {
+        return current;
+      }
       const parent = path.dirname(current);
-      if (parent === current) {return startPath;}
+      if (parent === current) {
+        return startPath;
+      }
       current = parent;
     }
   }
