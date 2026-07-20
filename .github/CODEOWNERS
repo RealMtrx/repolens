@@ -1,14 +1,14 @@
 # Default owners for all files
-* @repolens/maintainers
+* @RealMtrx
 
 # Configuration files
-.eslintrc* @repolens/maintainers
-.prettierrc* @repolens/maintainers
-tsconfig.json @repolens/maintainers
+.eslintrc* @RealMtrx
+.prettierrc* @RealMtrx
+tsconfig.json @RealMtrx
 
 # GitHub Actions
-.github/workflows/ @repolens/maintainers
+.github/workflows/ @RealMtrx
 
 # Documentation
-README.md @repolens/maintainers
-CONTRIBUTING.md @repolens/maintainers
+README.md @RealMtrx
+CONTRIBUTING.md @RealMtrx
