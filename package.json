@@ -1,0 +1,90 @@
+{
+  "name": "repolens",
+  "version": "1.0.0",
+  "description": "Understand any repository in seconds. A production-grade repository analyzer.",
+  "keywords": [
+    "repository",
+    "analyzer",
+    "code-analysis",
+    "cli",
+    "git",
+    "code-quality",
+    "repo-health"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "RepoLens Contributors",
+    "url": "https://github.com/repolens/repolens"
+  },
+  "type": "module",
+  "bin": {
+    "repolens": "./bin/repolens.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src/ --ext .ts --max-warnings 0",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\" \"*.md\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\" \"*.md\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "docs": "typedoc --out docs/api src/index.ts",
+    "prepare": "husky",
+    "prepublishOnly": "npm run build && npm run test",
+    "all": "npm run format && npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "boxen": "^8.0.1",
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^13.1.0",
+    "ora": "^8.2.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "eslint": "^9.25.0",
+    "eslint-config-prettier": "^10.1.2",
+    "globals": "^16.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.1",
+    "prettier": "^3.5.3",
+    "tsup": "^8.4.0",
+    "typedoc": "^0.28.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.0",
+    "vitest": "^3.1.1"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/repolens/repolens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/repolens/repolens/issues"
+  },
+  "homepage": "https://github.com/repolens/repolens#readme"
+}
