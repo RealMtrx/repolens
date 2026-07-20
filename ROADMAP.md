@@ -5,30 +5,28 @@ milestone and are subject to change based on community feedback and maintainer a
 
 ---
 
-## v1.0 — Released
+## v1.1 — Released
 
-The initial release focuses on comprehensive local repository analysis with multiple output formats.
+- [x] Interactive TUI with keyboard navigation
+- [x] 14 CLI commands with aliases and categorized help
+- [x] Comprehensive smart detection (package managers, monorepo tools, frameworks, CI/CD, linters,
+      test runners, Docker, git hooks, and more)
+- [x] Custom amber/teal/coral TUI design system
+- [x] All 4 reporters redesigned with detected technologies display
+- [x] Analysis cache for fast re-runs
+- [x] Performance optimizations (parallel scanning, safe regex, incremental analysis)
+- [x] 255+ tests across 11 test files
+- [x] Config system (repoinsight.json, .repoinsightrc)
+- [x] Plugin system architecture
 
-- [x] Full repository scanning and analysis
-- [x] Language detection for 50+ programming languages
-- [x] Git statistics and contributor analysis
-- [x] Security scanning (secrets, tokens, keys)
-- [x] Code quality metrics (complexity, duplication, circular imports)
-- [x] Dependency analysis (unused dependencies)
-- [x] Documentation audit (README, LICENSE, .gitignore, CI)
-- [x] Multiple output formats: Terminal, JSON, Markdown, HTML
-- [x] Project health scoring across 8 categories
+## v1.2 — Up next
 
-## v1.1 — Up next
-
-- [ ] **Configurable rule sets** — Allow users to define custom severity thresholds and ignore
-      patterns via `.repoinsightrc` or `repoinsight.config.json`
-- [ ] **Offline vulnerability lookup** — Local database of known vulnerabilities for common packages
-      (updated via periodic `repoinsight update` command)
-- [ ] **GitHub Actions annotations** — Output report annotations directly in pull request diffs
-- [ ] **`.repoinsightignore` file** — Per-project exclusion patterns similar to `.gitignore`
-- [ ] **Performance profiling** — Detect slow functions, large bundles, and import bottlenecks
-- [ ] **Incremental scanning** — Only analyze changed files since the last scan for large monorepos
+- [ ] **Configurable rule sets** — Custom severity thresholds and ignore patterns
+- [ ] **Offline vulnerability lookup** — Local database of known vulnerabilities
+- [ ] **GitHub Actions annotations** — PR comment annotations from analysis
+- [ ] **`.repoinsightignore` file** — Per-project exclusion patterns
+- [ ] **Performance profiling** — Detect slow functions, large bundles, import bottlenecks
+- [ ] **Monorepo-aware analysis** — Analyze individual packages within monorepos
 
 ## v2.0 — Future
 
@@ -60,15 +58,3 @@ The initial release focuses on comprehensive local repository analysis with mult
 - [ ] **Web dashboard** — Hosted dashboard for team-wide project monitoring
 - [ ] **Team reports** — Aggregate scores across multiple repositories
 - [ ] **Quality gates** — Define score thresholds that block PRs or deployments
-
----
-
-## How to influence the roadmap
-
-- **Vote on issues** — Add a thumbs-up reaction on GitHub issues you want to see prioritized
-- **Submit feature requests** — Use the
-  [feature request template](https://github.com/RealMtrx/repoinsight/issues/new?template=feature_request.yml)
-- **Open a discussion** — Start a conversation in
-  [GitHub Discussions](https://github.com/RealMtrx/repoinsight/discussions)
-- **Contribute code** — PRs are welcome for any unplanned feature; open an issue first to discuss
-  scope

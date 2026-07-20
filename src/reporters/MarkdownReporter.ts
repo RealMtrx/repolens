@@ -3,139 +3,229 @@ import { formatFileSize } from "../utils/file.js";
 
 export class MarkdownReporter {
   render(report: AnalysisReport): string {
-    const sections: string[] = [];
+    const s: string[] = [];
 
-    sections.push(`# repoinsight Report: ${report.projectName}\n`);
-    sections.push(`> Generated at ${report.analyzedAt} | Duration: ${String(report.duration)}ms\n`);
+    s.push(`# ◆ repoinsight Report: ${report.projectName}\n`);
+    s.push(`> ${report.projectPath} · ${report.analyzedAt} · ${report.duration}ms\n`);
 
-    sections.push(this.renderSummary(report));
-    sections.push(this.renderScore(report));
-    sections.push(this.renderCategoryScores(report.categoryScores));
-    sections.push(this.renderLanguages(report.languages));
-
+    s.push(this.summary(report));
+    s.push(this.score(report));
+    s.push(this.technologies(report.technologies));
+    s.push(this.categories(report.categoryScores));
+    s.push(this.languages(report.languages));
     if (report.gitStats) {
-      sections.push(this.renderGitStats(report));
+      s.push(this.git(report));
+    }
+    s.push(this.issues(report));
+    s.push(this.recs(report.recommendations));
+
+    if (report.biggestFiles.length) {
+      s.push(this.bigFiles(report));
+    }
+    if (report.complexity.filter((c) => c.cyclomaticComplexity > 10).length) {
+      s.push(this.complex(report));
     }
 
-    sections.push(this.renderIssues(report));
-    sections.push(this.renderRecommendations(report.recommendations));
-
-    return sections.join("\n\n");
+    return s.join("\n\n");
   }
 
-  private renderSummary(report: AnalysisReport): string {
-    const s = report.summary;
+  private summary(r: AnalysisReport): string {
+    const m = r.summary;
     return [
       "## Summary\n",
       "| Metric | Value |",
       "|--------|-------|",
-      `| Files | ${String(s.totalFiles)} |`,
-      `| Folders | ${String(s.totalFolders)} |`,
-      `| Total Size | ${formatFileSize(s.totalSize)} |`,
-      `| Languages | ${String(s.languages)} |`,
-      `| Commits | ${String(s.commits)} |`,
-      `| Branches | ${String(s.branches)} |`,
-      `| Contributors | ${String(s.contributors)} |`,
-      `| Overall Score | ${String(s.score)}/100 |`,
+      `| Files       | ${m.totalFiles} |`,
+      `| Folders     | ${m.totalFolders} |`,
+      `| Size        | ${formatFileSize(m.totalSize)} |`,
+      `| Languages   | ${m.languages} |`,
+      `| Commits     | ${m.commits} |`,
+      `| Branches    | ${m.branches} |`,
+      `| Contributors| ${m.contributors} |`,
+      `| **Score**   | **${m.score}/100** |`,
     ].join("\n");
   }
 
-  private renderScore(report: AnalysisReport): string {
-    return `## Overall Score\n\n**${String(report.score)}/100**\n`;
+  private score(r: AnalysisReport): string {
+    const bar = this.progressBar(r.score, 20);
+    return `## Overall Score\n\n**${r.score}/100**\n\n\`${bar}\`\n`;
   }
 
-  private renderCategoryScores(
-    categories: { name: string; percentage: number; status: string }[],
-  ): string {
-    if (categories.length === 0) {
+  private technologies(tech: AnalysisReport["technologies"]): string {
+    const rows: string[] = [
+      "## Technologies\n\n| Category | Detected |",
+      "|----------|----------|",
+    ];
+    const add = (label: string, vals: string[]) => {
+      if (vals.length) {
+        rows.push(`| ${label} | ${vals.join(", ")} |`);
+      }
+    };
+    const pm = tech.packageManager
+      ? tech.packageManager + (tech.packageManagerVersion ? `@${tech.packageManagerVersion}` : "")
+      : null;
+    if (pm) {
+      add("Package", [pm]);
+    }
+    if (tech.monorepo) {
+      add("Monorepo", [tech.monorepo]);
+    }
+    add("Framework", tech.frameworks);
+    add("Testing", tech.testFrameworks);
+    add("Linter", tech.linters);
+    add("Hooks", tech.gitHooks);
+    add("CI/CD", tech.ciProviders);
+    if (tech.nodeVersion) {
+      add("Node", [tech.nodeVersion]);
+    }
+    if (tech.typescript) {
+      add("Lang", ["TypeScript, JavaScript"]);
+    }
+    if (tech.docker) {
+      add("Docker", ["Dockerfile"]);
+    }
+    const docs: string[] = [];
+    if (tech.hasReadme) {
+      docs.push("README");
+    }
+    if (tech.hasLicense) {
+      docs.push("LICENSE");
+    }
+    if (tech.hasSecurity) {
+      docs.push("SECURITY");
+    }
+    if (tech.hasContributing) {
+      docs.push("CONTRIBUTING");
+    }
+    add("Docs", docs);
+    return rows.join("\n") + "\n";
+  }
+
+  private categories(cats: { name: string; percentage: number; status: string }[]): string {
+    if (!cats.length) {
       return "";
     }
-    const rows = categories
-      .map((c) => `| ${c.name} | ${String(c.percentage)}% | ${c.status} |`)
-      .join("\n");
-    return `## Category Scores\n\n| Category | Score | Status |\n|----------|-------|--------|\n${rows}\n`;
+    return (
+      "## Category Scores\n\n| Category | Score | Status |\n|----------|-------|--------|\n" +
+      cats.map((c) => `| ${c.name} | ${c.percentage}% | ${this.badge(c.status)} |`).join("\n")
+    );
   }
 
-  private renderLanguages(
-    languages: { language: string; files: number; percentage: number }[],
-  ): string {
-    if (languages.length === 0) {
+  private languages(langs: { language: string; files: number; percentage: number }[]): string {
+    if (!langs.length) {
       return "";
     }
-    const rows = languages
-      .slice(0, 10)
-      .map((l) => `| ${l.language} | ${String(l.files)} | ${String(l.percentage)}% |`)
-      .join("\n");
-    return `## Languages\n\n| Language | Files | Share |\n|----------|-------|-------|\n${rows}\n`;
+    return (
+      "## Languages\n\n| Language | Files | Share |\n|----------|-------|-------|\n" +
+      langs
+        .slice(0, 10)
+        .map((l) => `| ${l.language} | ${l.files} | ${l.percentage}% |`)
+        .join("\n")
+    );
   }
 
-  private renderGitStats(report: AnalysisReport): string {
-    const stats = report.gitStats!;
+  private git(r: AnalysisReport): string {
+    const g = r.gitStats!;
     const lines = [
       "## Git Statistics\n",
-      `- **Commits:** ${String(stats.commitCount)}`,
-      `- **Branches:** ${String(stats.branchCount)}`,
-      `- **Contributors:** ${String(stats.contributorCount)}`,
+      `- **Commits:** ${g.commitCount}`,
+      `- **Branches:** ${g.branchCount}`,
+      `- **Contributors:** ${g.contributorCount}`,
     ];
-    if (stats.firstCommitDate) {
-      lines.push(`- **First Commit:** ${stats.firstCommitDate}`);
+    if (g.firstCommitDate) {
+      lines.push(`- **First Commit:** ${g.firstCommitDate}`);
     }
-    if (stats.lastCommitDate) {
-      lines.push(`- **Last Commit:** ${stats.lastCommitDate}`);
+    if (g.lastCommitDate) {
+      lines.push(`- **Last Commit:** ${g.lastCommitDate}`);
     }
     return lines.join("\n");
   }
 
-  private renderIssues(report: AnalysisReport): string {
-    const parts: string[] = [];
-
-    if (report.hardcodedSecrets.length > 0) {
-      parts.push("### Hardcoded Secrets\n");
-      parts.push("| File | Line | Type |");
-      parts.push("|------|------|------|");
-      for (const s of report.hardcodedSecrets) {
-        parts.push(`| ${s.file} | ${String(s.line)} | ${s.type} |`);
+  private issues(r: AnalysisReport): string {
+    const p: string[] = [];
+    if (r.hardcodedSecrets.length) {
+      p.push("### 🔒 Hardcoded Secrets\n");
+      p.push("| File | Line | Type | Context |\n|------|------|------|---------|");
+      for (const s of r.hardcodedSecrets.slice(0, 10)) {
+        p.push(`| ${s.file} | ${s.line} | ${s.type} | \`${s.context.slice(0, 50)}\` |`);
       }
     }
-
-    if (report.todoComments.length > 0) {
-      parts.push("### TODO/FIXME Comments\n");
-      parts.push("| File | Line | Type | Text |");
-      parts.push("|------|------|------|------|");
-      for (const t of report.todoComments.slice(0, 20)) {
-        parts.push(`| ${t.file} | ${String(t.line)} | ${t.type} | ${t.text} |`);
+    if (r.todoComments.length) {
+      p.push("### 📝 TODO/FIXME Comments\n");
+      p.push("| File | Line | Type | Text |\n|------|------|------|------|");
+      for (const t of r.todoComments.slice(0, 20)) {
+        p.push(`| ${t.file} | ${t.line} | ${t.type} | ${t.text.slice(0, 60)} |`);
       }
     }
-
-    if (report.dependencyIssues.length > 0) {
-      parts.push("### Dependency Issues\n");
-      parts.push("| Dependency | Type | Severity |");
-      parts.push("|------------|------|----------|");
-      for (const d of report.dependencyIssues) {
-        parts.push(`| ${d.name} | ${d.type} | ${d.severity} |`);
+    if (r.dependencyIssues.length) {
+      p.push("### 📦 Dependency Issues\n");
+      p.push("| Dependency | Type | Severity |\n|------------|------|----------|");
+      for (const d of r.dependencyIssues.slice(0, 15)) {
+        p.push(`| ${d.name} | ${d.type} | ${d.severity} |`);
       }
     }
-
-    if (report.circularImports.length > 0) {
-      parts.push("### Circular Imports\n");
-      parts.push("| File | Chain |");
-      parts.push("|------|-------|");
-      for (const c of report.circularImports) {
-        parts.push(`| ${c.file} | ${c.chain.join(" \u2192 ")} |`);
+    if (r.circularImports.length) {
+      p.push("### 🔄 Circular Imports\n");
+      p.push("| File | Chain |\n|------|-------|");
+      for (const c of r.circularImports.slice(0, 10)) {
+        p.push(`| ${c.file} | ${c.chain.join(" → ")} |`);
       }
     }
-
-    if (parts.length === 0) {
-      return "## Issues\n\nNo issues detected.\n";
+    if (!p.length) {
+      return "## Issues\n\n_No issues detected._\n";
     }
-    return `## Issues\n\n${parts.join("\n\n")}\n`;
+    return `## Issues\n\n${p.join("\n\n")}\n`;
   }
 
-  private renderRecommendations(recommendations: string[]): string {
-    if (recommendations.length === 0) {
-      return "## Recommendations\n\nNo recommendations.\n";
+  private recs(recs: string[]): string {
+    if (!recs.length) {
+      return "## Recommendations\n\n_No recommendations._\n";
     }
-    const items = recommendations.map((r) => `- ${r}`).join("\n");
-    return `## Recommendations\n\n${items}\n`;
+    return "## Recommendations\n\n" + recs.map((r) => `- ◆ ${r}`).join("\n") + "\n";
+  }
+
+  private bigFiles(r: AnalysisReport): string {
+    return (
+      "## Biggest Files\n\n| File | Size |\n|------|------|\n" +
+      r.biggestFiles
+        .slice(0, 10)
+        .map((f) => `| ${f.path} | ${formatFileSize(f.size)} |`)
+        .join("\n")
+    );
+  }
+
+  private complex(r: AnalysisReport): string {
+    return (
+      "## Complex Code\n\n| File | Lines | Complexity | Functions |\n|------|-------|------------|-----------|\n" +
+      r.complexity
+        .filter((c) => c.cyclomaticComplexity > 10)
+        .map(
+          (c) =>
+            `| ${c.file} | ${c.linesOfCode} | ${c.cyclomaticComplexity} | ${c.functionCount} |`,
+        )
+        .join("\n")
+    );
+  }
+
+  private progressBar(score: number, w: number): string {
+    const fill = Math.round((score / 100) * w);
+    return "█".repeat(fill) + "░".repeat(w - fill);
+  }
+
+  private badge(status: string): string {
+    switch (status) {
+      case "excellent":
+        return "🟢 excellent";
+      case "good":
+        return "🔵 good";
+      case "fair":
+        return "🟡 fair";
+      case "poor":
+        return "🟠 poor";
+      case "critical":
+        return "🔴 critical";
+      default:
+        return status;
+    }
   }
 }

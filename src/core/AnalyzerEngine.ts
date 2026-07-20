@@ -1,8 +1,9 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { loadConfig } from "../config/index.js";
 import { Scanner } from "./Scanner.js";
+import { AnalysisCache } from "./Cache.js";
 import type {
   AnalysisOptions,
   AnalysisReport,
@@ -20,6 +21,7 @@ import type {
   FileInfo,
   FolderInfo,
 } from "../types/index.js";
+import { Detector } from "../detection/index.js";
 import { countLines, getDirectoryTree } from "../utils/file.js";
 import {
   isGitRepository,
@@ -42,11 +44,13 @@ interface AnalysisContext {
 export class AnalyzerEngine {
   private readonly options: AnalysisOptions;
   private readonly scanner: Scanner;
+  private readonly cache: AnalysisCache | null;
 
   constructor(options: AnalysisOptions) {
     loadConfig({ excludePatterns: options.excludePatterns });
     this.options = options;
     this.scanner = new Scanner(options);
+    this.cache = options.useCache ? new AnalysisCache(process.cwd()) : null;
   }
 
   async analyze(projectPath: string): Promise<AnalysisReport> {
@@ -68,6 +72,7 @@ export class AnalyzerEngine {
     const gitStats = this.analyzeGit(rootPath);
     const todoComments = this.findTodoComments(fileContents);
     const hardcodedSecrets = this.findHardcodedSecrets(fileContents);
+    const technologies = new Detector(rootPath).detect();
     const largeAssets = this.findLargeAssets(files);
     const binaryFiles = files.filter((f) => f.isBinary).map((f) => f.path);
     const envFiles = this.findEnvFiles(files);
@@ -139,6 +144,7 @@ export class AnalyzerEngine {
       todoComments,
       hardcodedSecrets,
       largeAssets,
+      technologies,
       binaryFiles,
       envFiles,
       duplicateCode,
@@ -196,8 +202,23 @@ export class AnalyzerEngine {
       .map(async (file) => {
         try {
           const fullPath = path.join(rootPath, file.path);
+          const stat = statSync(fullPath);
+
+          if (this.cache) {
+            const cached = this.cache.get(fullPath, stat.mtimeMs, stat.size, "content");
+            if (cached !== null && typeof cached === "string") {
+              file.lines = cached.split("\n").length;
+              return { path: file.path, content: cached } as const;
+            }
+          }
+
           const content = await readFile(fullPath, "utf-8");
           file.lines = countLines(content);
+
+          if (this.cache) {
+            this.cache.set(fullPath, stat.mtimeMs, stat.size, "content", content);
+          }
+
           return { path: file.path, content } as const;
         } catch {
           return null;
@@ -551,15 +572,16 @@ export class AnalyzerEngine {
       },
       {
         type: "jwt-secret",
-        regex: /(?:JWT_SECRET|jwt_secret)\s*[:=]\s*["']?.+["']?$/im,
+        regex: /(?:JWT_SECRET|jwt_secret)\s*[:=]\s*["']?[A-Za-z0-9_-]{4,}["']?$/im,
       },
       {
         type: "password",
-        regex: /(?:password|passwd|pwd)\s*[:=]\s*["']?.+["']?$/im,
+        regex:
+          /(?:password|passwd|pwd)\s*[:=]\s*["']?[A-Za-z0-9!@#$%^&*()_+\-={}[\]|;:',.<>?/]{4,}["']?$/im,
       },
       {
         type: "generic-secret",
-        regex: /(?:secret|token|api[_-]?key|apikey)\s*[:=]\s*["']?.{8,}["']?$/im,
+        regex: /(?:secret|token|api[_-]?key|apikey)\s*[:=]\s*["']?[A-Za-z0-9_-]{8,}["']?$/im,
       },
     ];
 

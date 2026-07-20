@@ -3,405 +3,252 @@
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/RealMtrx/repoinsight/main/assets/repoinsight-dark.svg">
     <img alt="repoinsight" src="https://raw.githubusercontent.com/RealMtrx/repoinsight/main/assets/repoinsight-light.svg" width="400">
   </picture>
+  <br>
+  <strong>Cross-platform repository analysis CLI</strong>
+  <br>
+  <sub>Understand any repository in seconds</sub>
 </p>
 
 <p align="center">
-  <strong>Understand any repository in seconds.</strong>
+  <a href="https://www.npmjs.com/package/repoinsight"><img src="https://img.shields.io/npm/v/repoinsight.svg" alt="npm version"></a>
+  <a href="https://github.com/RealMtrx/repoinsight/actions"><img src="https://github.com/RealMtrx/repoinsight/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/RealMtrx/repoinsight/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RealMtrx/repoinsight" alt="license"></a>
 </p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/repoinsight"><img src="https://img.shields.io/npm/v/repoinsight.svg?style=flat&logo=npm&label=version" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/repoinsight"><img src="https://img.shields.io/npm/dm/repoinsight.svg?style=flat&logo=npm" alt="npm downloads"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/RealMtrx/repoinsight.svg?style=flat" alt="MIT License"></a>
-  <a href="https://github.com/RealMtrx/repoinsight/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/RealMtrx/repoinsight/ci.yml?style=flat&logo=github" alt="CI status"></a>
-  <a href="https://codecov.io/gh/RealMtrx/repoinsight"><img src="https://img.shields.io/codecov/c/github/RealMtrx/repoinsight?style=flat&logo=codecov" alt="codecov"></a>
-  <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/repoinsight?style=flat&logo=node.js" alt="node version"></a>
-  <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/types-TypeScript-3178C6.svg?style=flat&logo=typescript" alt="TypeScript"></a>
-  <a href="https://github.com/RealMtrx/repoinsight/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat" alt="PRs welcome"></a>
-</p>
-
----
-
-repoinsight is a **production-grade CLI tool** that scans any local Git repository and produces a
-detailed health report. It works **completely offline** — no API keys, no servers, no telemetry, no
-analytics. Point it at any directory and get an instant, actionable breakdown of your project's
-health.
-
----
-
-## Why repoinsight?
-
-Every codebase accumulates issues over time. Unused dependencies pile up, hardcoded secrets leak
-into commits, documentation goes missing, and complexity spirals out of control. repoinsight gives
-developers and teams an **instant, objective health assessment** of any repository — no
-configuration, no setup, no signup.
-
-**Use repoinsight to:**
-
-- **Audit** a new project before contributing
-- **Review** pull requests with automated insights
-- **Monitor** codebase health over time via CI
-- **Discover** security issues before they reach production
-- **Improve** documentation, testing, and code quality standards
-- **Onboard** developers faster with clear project snapshots
 
 ---
 
 ## Features
 
-### Project Health Score
+- **Interactive TUI** — keyboard-navigable terminal interface with repository overview
+- **14 Commands** — analyze, doctor, report, init, config, fix, stats, graph, deps, licenses,
+  security, cache, update, help
+- **Smart Detection** — auto-detects package manager, monorepo tools, frameworks, test runners,
+  CI/CD, linters, and more
+- **4 Report Formats** — terminal (ANSI), HTML (dark theme), Markdown, JSON
+- **Performance** — parallel file scanning, smart caching, incremental analysis
+- **Scoring** — 8-category health score with actionable recommendations
+- **Zero Config** — works out of the box, no configuration needed
 
-An overall score from 0–100 across eight weighted categories: Documentation, Testing, Structure,
-Dependencies, Security, Maintainability, Performance, and Code Quality.
-
-### Repository Scanning
-
-- **Folder structure** — Visual directory tree with nesting
-- **Language breakdown** — Detect 50+ programming languages used in the project
-- **Biggest folders** — Identify folders consuming the most disk space
-- **Biggest files** — Find the largest source files in the repository
-- **Empty folders** — Detect and list directories with no content
-
-### Git Analysis
-
-- **Commit count** — Total number of commits in the current branch
-- **Branch count** — Number of local branches
-- **Contributors** — List of all contributors with commit counts
-- **Largest commits** — Commits that touched the most files
-- **First and last commit dates** — Project timeline information
-
-### Security Scanning
-
-- **Hardcoded secrets** — Detect private keys, AWS keys, GitHub tokens, Discord tokens, Google API
-  keys, JWT secrets, and passwords
-- **Committed `.env` files** — Flag environment files that should not be version-controlled
-
-### Code Quality
-
-- **Circular imports** — Detect dependency cycles between modules
-- **Duplicate code** — Basic duplicate block detection across files
-- **Code complexity** — Cyclomatic complexity, function count, and nesting depth per file
-- **TODO/FIXME detection** — Scan for incomplete work markers throughout the codebase
-
-### Dependency Analysis
-
-- **Unused dependencies** — Packages installed but never imported
-- **Missing dependencies** — Imports that resolve to no installed package
-- **Outdated dependencies** — Locally available version information from lockfiles
-
-### Documentation Audit
-
-- **Missing README** — Check if a README file exists
-- **Missing LICENSE** — Verify license presence
-- **Missing `.gitignore`** — Ensure Git exclusion rules are set up
-- **Missing tests** — Detect whether test files or directories exist
-- **Missing CI** — Check for CI/CD configuration files
-
-### Output Formats
-
-| Format       | Description                                                                            |
-| ------------ | -------------------------------------------------------------------------------------- |
-| **Terminal** | Beautiful CLI output with progress spinners, colored tables, and summary cards         |
-| **JSON**     | Machine-readable output for CI/CD pipelines and tooling                                |
-| **Markdown** | Clean report format ideal for pull requests and documentation                          |
-| **HTML**     | Modern responsive report with dark/light mode, progress bars, and interactive elements |
-
----
-
-## Installation
-
-### Global install (recommended)
+## Install
 
 ```bash
 npm install -g repoinsight
+# or
+pnpm add -g repoinsight
+# or
+yarn global add repoinsight
+# or
+bun add -g repoinsight
 ```
 
-### Local development dependency
+## Quick Start
 
 ```bash
-npm install --save-dev repoinsight
-```
+# Analyze the current directory
+repoinsight analyze
 
-### Run without installing
+# Analyze a specific path
+repoinsight analyze ./path/to/project
 
-```bash
-npx repoinsight scan
-```
+# Generate HTML report
+repoinsight analyze --html
 
-### System requirements
+# Generate Markdown report
+repoinsight analyze --md
 
-- **Node.js** 20 or later
-- **Git** (for repository analysis features)
-- Windows, macOS, or Linux
-
----
-
-## Usage
-
-### Quick start
-
-```bash
-# Scan the current directory
-repoinsight scan
-
-# Scan a specific project
-repoinsight scan ./path/to/project
-```
-
-### Generate a health report
-
-```bash
-# Detailed terminal report
-repoinsight report
-
-# Run diagnostics (focused on issues)
+# Doctor checkup
 repoinsight doctor
+
+# Disable cache for fresh analysis
+repoinsight analyze --no-cache
+
+# Start interactive TUI
+repoinsight
 ```
 
-### Export reports
+## Commands
 
-```bash
-# JSON format
-repoinsight json ./project report.json
-
-# Markdown format
-repoinsight markdown ./project report.md
-
-# HTML format (opens a full-page report)
-repoinsight html ./project report.html
-```
-
-### Help and version
-
-```bash
-repoinsight --help
-repoinsight --version
-```
-
----
-
-## CLI Examples
-
-### Basic scan output
-
-```bash
-$ repoinsight scan ./my-project
-```
-
-Displays a header with the project name and path, a summary card with file/folder/commit counts and
-the overall score, a category score grid, language breakdown, Git statistics, a list of any detected
-issues (secrets, TODOs, circular imports), and recommendations.
-
-### HTML report
-
-```bash
-$ repoinsight html ./my-project
-✓ HTML report saved to repoinsight-report.html
-```
-
-Open the generated HTML file in any browser for a full interactive report with dark/light mode
-toggle.
-
-### CI integration
-
-```bash
-$ repoinsight json ./project > report.json
-```
-
-The JSON output can be parsed in CI pipelines to enforce quality gates (e.g., fail the build if the
-score drops below 60).
-
----
-
----
-
-## Architecture
-
-repoinsight follows a clean layered architecture that separates concerns into distinct modules:
-
-```
-src/
-├── commands/        # CLI command implementations (scan, report, doctor, etc.)
-├── core/            # Scanner (file system walk) and AnalyzerEngine (all analysis logic)
-├── reporters/       # Output formatters: Terminal, JSON, Markdown, HTML
-├── models/          # Data models with Zod validation
-├── types/           # TypeScript type definitions and Zod schemas
-├── utils/           # File utilities, Git integration, scoring engine
-├── config/          # User configuration management
-└── constants/       # App-wide constants, language detection maps, thresholds
-```
-
-### Key design decisions
-
-- **Offline-first** — No external API calls or network requests
-- **Composable analyzers** — Each analysis dimension is a separate module
-- **Pluggable reporters** — Adding a new output format requires only a new reporter class
-- **Zod validation** — All user inputs and configuration are validated at the boundary
-- **Score weighting** — Category weights are configurable via `repoinsight.config.json`
-
----
-
-## Score Categories
-
-| Category        | Weight | Description                                                |
-| --------------- | ------ | ---------------------------------------------------------- |
-| Documentation   | 15%    | README, LICENSE, inline documentation quality              |
-| Testing         | 15%    | Presence and coverage of test files                        |
-| Structure       | 12%    | Folder organization, naming conventions, empty directories |
-| Dependencies    | 12%    | Dependency management, unused or missing packages          |
-| Security        | 15%    | Hardcoded secrets, committed environment files             |
-| Maintainability | 12%    | TODO/FIXME density, code duplication                       |
-| Performance     | 9%     | Large assets, binary file bloat                            |
-| Code Quality    | 10%    | Cyclomatic complexity, circular imports, CI configuration  |
-
----
-
-## Roadmap
-
-### v1.0 — Current
-
-- [x] Full repository scanning and analysis
-- [x] Language detection for 50+ programming languages
-- [x] Git statistics and contributor analysis
-- [x] Security scanning (secrets, tokens, keys)
-- [x] Code quality metrics (complexity, duplication, circular imports)
-- [x] Dependency analysis (unused Dependencies)
-- [x] Documentation audit (README, LICENSE, .gitignore, CI)
-- [x] Multiple output formats: Terminal, JSON, Markdown, HTML
-- [x] Project health scoring across 8 categories
-
-### v1.1 — Up next
-
-- [ ] Configurable rule sets and ignore patterns
-- [ ] Offline dependency vulnerability lookup (local database)
-- [ ] GitHub Actions annotation output
-- [ ] `.repoinsightignore` file support
-- [ ] Performance profiling and bottleneck detection
-
-### v2.0 — Future
-
-- [ ] Plugin system for custom analyzers and reporters
-- [ ] Historical tracking and trend charts
-- [ ] Repository comparison mode
-- [ ] VS Code extension
-- [ ] Web dashboard with team reports
-- [ ] Incremental analysis for large monorepos
-
----
+| Command    | Aliases        | Description                          |
+| ---------- | -------------- | ------------------------------------ |
+| `analyze`  | `a`, `inspect` | Full repository analysis             |
+| `doctor`   | `d`, `checkup` | Repository health checkup            |
+| `report`   | `r`            | Generate report from cached analysis |
+| `init`     | `i`            | Initialize a new analysis            |
+| `config`   | `c`            | View or edit configuration           |
+| `fix`      | `f`, `repair`  | Fix common repository issues         |
+| `stats`    | `s`            | Show repository statistics           |
+| `graph`    | `g`            | Generate dependency graph            |
+| `deps`     | `dep`          | Analyze dependencies                 |
+| `licenses` | `l`, `license` | Check dependency licenses            |
+| `security` | `sec`, `vuln`  | Security vulnerability scan          |
+| `cache`    | `c`            | Manage analysis cache                |
+| `update`   | `u`, `upgrade` | Check for updates                    |
+| `help`     | `h`, `?`       | Show help                            |
 
 ## Configuration
 
-Create a `repoinsight.config.json` file in your project root to customize behavior:
+repoinsight works out of the box with zero configuration. Optional config is loaded from:
+
+- `repoinsight.json` in project root
+- `.repoinsightrc` in project root
+- `repoinsight` key in `package.json`
+
+### Example `repoinsight.json`
 
 ```json
 {
-  "excludePatterns": ["**/generated/**", "**/vendor/**"],
+  "excludePatterns": ["dist/**", "build/**"],
   "maxFileSize": 5242880,
   "scoreWeights": {
-    "documentation": 10,
-    "security": 20,
+    "documentation": 15,
     "testing": 15,
-    "structure": 10,
+    "structure": 12,
     "dependencies": 10,
-    "maintainability": 15,
-    "performance": 10,
-    "codeQuality": 10
+    "security": 15,
+    "maintainability": 12,
+    "performance": 8,
+    "codeQuality": 13
   }
 }
 ```
 
----
+## Smart Detection
 
-## Contributing
+repoinsight automatically detects these technologies in your repository:
 
-We welcome contributions of all sizes. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed
-guidelines.
+### Package Managers
 
-### Quick start for contributors
+npm, pnpm, yarn, bun — detected from lock files and `packageManager` field
 
-```bash
-# Clone the repository
-git clone https://github.com/RealMtrx/repoinsight.git
-cd repoinsight
+### Monorepo Tools
 
-# Install dependencies
-npm install
+Turborepo, Nx, Lerna, npm/pnpm/yarn workspaces
 
-# Build the project
-npm run build
+### Frameworks
 
-# Run tests
-npm test
+Next.js, React, Vue, Svelte, Angular, Astro, Nuxt, Express, NestJS, Fastify
 
-# Run linting
-npm run lint
+### Test Frameworks
+
+Vitest, Jest, Mocha, Playwright, Cypress
+
+### Linters & Formatters
+
+ESLint, Prettier, Biome
+
+### CI/CD
+
+GitHub Actions, GitLab CI, Azure Pipelines, CircleCI, Travis CI, Jenkins
+
+### Git Hooks
+
+Husky, Commitlint, Changesets
+
+### Other
+
+Docker, Docker Compose, TypeScript, Node.js version (from engines, .nvmrc, volta)
+
+## Reports
+
+### Terminal (default)
+
+Color-coded output with progress bars, tables, and severity indicators using the original
+amber/teal/coral design system.
+
+### HTML
+
+Standalone dark-themed report with cards, bars, and responsive grid layout.
+
+### Markdown
+
+Plain-text tables with visual badges and progress bars for GitHub/README embedding.
+
+### JSON
+
+Machine-readable output for CI/CD pipelines and tooling.
+
+## Performance
+
+- **Parallel scanning** — files are read concurrently with configurable batch size
+- **Smart caching** — `.repoinsight-cache.json` stores file content hashes, skipped on subsequent
+  runs for unchanged files
+- **Incremental analysis** — `--incremental` flag only re-analyzes changed files
+- **Optimized regex** — backtracking-safe secret detection patterns
+- **Memory efficient** — binary files are skipped, large files are stream-capped
+
+## Scoring
+
+The health score (0–100) is calculated from 8 categories:
+
+| Category        | Default Weight | Description                         |
+| --------------- | -------------- | ----------------------------------- |
+| Documentation   | 15%            | README, inline docs, API docs       |
+| Testing         | 15%            | Test files, coverage config         |
+| Structure       | 12%            | Project organization, naming        |
+| Dependencies    | 10%            | Up-to-date deps, no unused deps     |
+| Security        | 15%            | Secrets, env files, vulnerabilities |
+| Maintainability | 12%            | Code complexity, duplication        |
+| Performance     | 8%             | Large files, asset sizes            |
+| Code Quality    | 13%            | Linting, formatting, conventions    |
+
+## Interactive TUI
+
+Run `repoinsight` without arguments to enter the interactive terminal interface:
+
+- Displays detected technologies and repository info
+- Keyboard-navigable menu (arrow keys / j/k)
+- Quick command launch with Enter
+- Search with `/`
+
+## API
+
+```typescript
+import { AnalyzerEngine } from "repoinsight/core/AnalyzerEngine";
+import { Detector } from "repoinsight/detection";
+
+// Programmatic analysis
+const engine = new AnalyzerEngine({ useCache: true });
+const report = await engine.analyze("./my-project");
+
+// Technology detection
+const detector = new Detector("./my-project");
+const tech = detector.detect();
+console.log(tech.packageManager); // "npm" | "pnpm" | "yarn" | "bun" | null
+console.log(tech.frameworks); // ["react", "next"]
 ```
 
-### Development scripts
+## Development
 
-| Command             | Description                                  |
-| ------------------- | -------------------------------------------- |
-| `npm run build`     | Build the project with tsup                  |
-| `npm run dev`       | Watch mode for development                   |
-| `npm test`          | Run test suite with Vitest                   |
-| `npm run lint`      | Run ESLint                                   |
-| `npm run format`    | Format code with Prettier                    |
-| `npm run typecheck` | TypeScript type checking                     |
-| `npm run all`       | Run format, lint, typecheck, test, and build |
+```bash
+git clone https://github.com/RealMtrx/repoinsight.git
+cd repoinsight
+npm install
+npm run build
+npm run test        # 255+ tests
+npm run lint        # zero errors
+npm run typecheck   # strict TypeScript
+```
 
----
+### Project Structure
 
-## FAQ
-
-### Does repoinsight send any data over the network?
-
-No. repoinsight is fully offline. No API calls, no telemetry, no analytics, no phoning home. Your
-code never leaves your machine.
-
-### Does repoinsight require API keys or authentication?
-
-No. Everything runs locally against your local file system.
-
-### Can repoinsight analyze remote GitHub repositories?
-
-Not directly. Clone the repository first, then run `repoinsight scan` against the local clone.
-repoinsight analyzes whatever filesystem path you give it.
-
-### What formats does repoinsight support for output?
-
-Terminal (default), JSON, Markdown, and HTML. Use the corresponding subcommand to choose the format.
-
-### Can I use repoinsight in CI/CD pipelines?
-
-Yes. The JSON output format is designed for CI integration. Pipe the output to a file and parse it
-to enforce quality gates.
-
-### How is the project score calculated?
-
-The score is a weighted average of eight category scores (documentation, testing, structure,
-dependencies, security, maintainability, performance, and code quality). Each category is scored
-from 0–100 based on heuristics and weighted according to the configuration.
-
----
+```
+src/
+  commands/     — 14 CLI commands with Commander
+  config/       — Config loading (repoinsight.json, .repoinsightrc)
+  constants/    — App constants, defaults
+  core/         — AnalyzerEngine, Scanner, Cache
+  detection/    — Technology detection engine
+  models/       — Data models (AnalysisOptions, Report)
+  reporters/    — Terminal, HTML, Markdown, JSON reporters
+  tui/          — Interactive TUI (Menu, Box, Layout, etc.)
+  types/        — TypeScript types and Zod schemas
+  utils/        — File, git, scoring utilities
+tests/
+  unit/         — Unit tests (vitest)
+  integration/  — Integration tests
+  fixtures/     — Test fixtures
+```
 
 ## License
 
-[MIT](LICENSE) &copy; 2026 Mtrx
-
----
-
-## Support
-
-| Resource         | Link                                                                      |
-| ---------------- | ------------------------------------------------------------------------- |
-| Documentation    | [README](README.md)                                                       |
-| Issue Tracker    | [GitHub Issues](https://github.com/RealMtrx/repoinsight/issues)           |
-| Feature Requests | [GitHub Discussions](https://github.com/RealMtrx/repoinsight/discussions) |
-| Security         | [SECURITY.md](SECURITY.md)                                                |
-| Changelog        | [CHANGELOG.md](CHANGELOG.md)                                              |
-
----
-
-<p align="center">
-  <sub>Built by <a href="https://github.com/RealMtrx">Mtrx</a> &middot; Star us on <a href="https://github.com/RealMtrx/repoinsight">GitHub</a></sub>
-</p>
+MIT © [Mtrx](https://github.com/RealMtrx)

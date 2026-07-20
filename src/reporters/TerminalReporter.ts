@@ -1,15 +1,16 @@
-import chalk, { type ChalkInstance } from "chalk";
-import boxen from "boxen";
 import Table from "cli-table3";
 import type { AnalysisReport, CategoryScore } from "../types/index.js";
-import { INDICATORS, APP_NAME } from "../constants/index.js";
+import { APP_NAME } from "../constants/index.js";
 import { formatFileSize } from "../utils/file.js";
+import { theme, styles, icons, severity } from "../tui/index.js";
+import { terminalWidth, repeat, formatDuration } from "../tui/utils.js";
 
 export class TerminalReporter {
   render(report: AnalysisReport): void {
     console.log(this.renderHeader(report));
     console.log(this.renderSummaryCard(report));
     console.log(this.renderScoreCard(report));
+    console.log(this.renderTechnologies(report.technologies));
     console.log(this.renderCategoryScores(report.categoryScores));
     console.log(this.renderLanguages(report.languages));
     console.log(this.renderGitStats(report));
@@ -19,236 +20,379 @@ export class TerminalReporter {
   }
 
   private renderHeader(report: AnalysisReport): string {
-    return boxen(
-      `${chalk.bold.cyan(APP_NAME)} ${chalk.gray("v1.0.0")}\n${chalk.dim(report.projectPath)}`,
-      { padding: 1, margin: 1, borderStyle: "round", borderColor: "cyan", align: "center" },
-    );
+    const w = Math.min(terminalWidth(), 72);
+    const score = report.summary?.score;
+    const scoreStr = score !== null && score !== undefined ? `v${score}` : "";
+    const title = `${theme.primary(icons.diamond + " " + APP_NAME)} ${theme.muted(scoreStr)}`;
+    const path = styles.dim(report.projectPath);
+    const top = theme.border(repeat(icons.horizontal, w));
+    const mid = `  ${styles.dim(repeat(" ", Math.max(0, Math.floor((w - styles.dim(path).length) / 2))))}${path}`;
+    return `\n${top}\n${styles.dim(repeat(" ", Math.max(0, Math.floor((w - title.length) / 2))))}${title}\n${mid}\n${top}`;
   }
 
   private renderSummaryCard(report: AnalysisReport): string {
     const s = report.summary;
     const lines = [
-      chalk.bold("Summary"),
-      "",
-      `${chalk.dim("Files:")}      ${chalk.white(String(s.totalFiles))}`,
-      `${chalk.dim("Folders:")}    ${chalk.white(String(s.totalFolders))}`,
-      `${chalk.dim("Size:")}       ${chalk.white(formatFileSize(s.totalSize))}`,
-      `${chalk.dim("Languages:")}  ${chalk.white(String(s.languages))}`,
-      `${chalk.dim("Commits:")}    ${chalk.white(String(s.commits))}`,
-      `${chalk.dim("Branches:")}   ${chalk.white(String(s.branches))}`,
-      `${chalk.dim("Score:")}      ${this.scoreToColor(report.score)(String(report.score) + "/100")}`,
+      `${styles.label("Files:")}     ${styles.number(s.totalFiles)}`,
+      `${styles.label("Folders:")}   ${styles.number(s.totalFolders)}`,
+      `${styles.label("Size:")}      ${styles.number(formatFileSize(s.totalSize))}`,
+      `${styles.label("Languages:")} ${styles.number(s.languages)}`,
+      `${styles.label("Commits:")}   ${styles.number(s.commits)}`,
+      `${styles.label("Branches:")}  ${styles.number(s.branches)}`,
+      `${styles.label("Score:")}     ${this.scoreColor(s.score)(`${s.score}/100`)}`,
     ];
-    return boxen(lines.join("\n"), {
-      padding: 1,
-      margin: 1,
-      borderStyle: "single",
-      borderColor: "white",
-    });
+    return this.simpleBox(lines, " Summary ");
   }
 
   private renderScoreCard(report: AnalysisReport): string {
-    const scoreColor = this.scoreToColor(report.score);
-    const bar = this.renderProgressBar(report.score);
-    return boxen(
-      `${chalk.bold("Project Score")}\n\n${scoreColor.bold(String(report.score) + "/100")}\n${bar}`,
-      { padding: 1, margin: 1, borderStyle: "double", borderColor: "green", align: "center" },
-    );
+    const barWidth = 20;
+    const score = report.score;
+    const filled = Math.round((score / 100) * barWidth);
+    const bar = `${theme.success(repeat(icons.progressFill, filled))}${theme.muted(repeat(icons.progressEmpty, barWidth - filled))}`;
+    const lines = [`      ${this.scoreColor(score)(`${score}/100`)}`, `   ${bar}`];
+    return this.simpleBox(lines, " Project Score ");
   }
 
-  private renderCategoryScores(categories: CategoryScore[]): string {
-    if (categories.length === 0) {
-      return "";
+  private renderTechnologies(tech: AnalysisReport["technologies"]): string {
+    const lines: string[] = [];
+    const add = (label: string, vals: string[]) => {
+      if (vals.length) {
+        lines.push(`  ${styles.label(label)}  ${vals.map((v) => styles.keyword(v)).join(", ")}`);
+      }
+    };
+    add(
+      "Package",
+      tech.packageManager
+        ? [
+            tech.packageManager +
+              (tech.packageManagerVersion ? `@${tech.packageManagerVersion}` : ""),
+          ]
+        : [],
+    );
+    if (tech.monorepo) {
+      add("Monorepo", [tech.monorepo]);
     }
+    add("Framework", tech.frameworks);
+    add("Testing", tech.testFrameworks);
+    add("Linter", tech.linters);
+    add("Hooks", tech.gitHooks);
+    add("CI/CD", tech.ciProviders);
+    if (tech.nodeVersion) {
+      lines.push(`  ${styles.label("Node")}       ${styles.keyword(tech.nodeVersion)}`);
+    }
+    if (tech.typescript) {
+      lines.push(`  ${styles.label("Lang")}      TypeScript, JavaScript`);
+    }
+    if (tech.docker) {
+      lines.push(`  ${styles.label("Docker")}     ${theme.muted("Dockerfile")}`);
+    }
+    const docs: string[] = [];
+    if (tech.hasReadme) {
+      docs.push("README");
+    }
+    if (tech.hasLicense) {
+      docs.push("LICENSE");
+    }
+    if (tech.hasSecurity) {
+      docs.push("SECURITY");
+    }
+    if (tech.hasContributing) {
+      docs.push("CONTRIBUTING");
+    }
+    if (tech.changesets) {
+      docs.push("changesets");
+    }
+    add("Docs", docs);
+    return `\n${styles.subheading(` ${icons.arrow} Technologies`)}\n${this.simpleBox(lines, "")}`;
+  }
+
+  private renderCategoryScores(scores: CategoryScore[]): string {
     const table = new Table({
-      head: ["Category", "Score", "Status"],
-      style: { head: ["cyan"] },
+      head: [styles.label("Category"), styles.label("Score"), styles.label("Status")],
+      style: { head: [], border: ["grey"] },
+      chars: {
+        top: icons.horizontal,
+        "top-mid": icons.teeDown,
+        "top-left": icons.topLeft,
+        "top-right": icons.topRight,
+        bottom: icons.horizontal,
+        "bottom-mid": icons.teeUp,
+        "bottom-left": icons.bottomLeft,
+        "bottom-right": icons.bottomRight,
+        left: icons.vertical,
+        "left-mid": icons.teeRight,
+        mid: icons.horizontal,
+        "mid-mid": icons.crossLine,
+        right: icons.vertical,
+        "right-mid": icons.teeLeft,
+        middle: " ",
+      },
     });
-    for (const cat of categories) {
-      const indicator = this.statusIndicator(cat.status);
+    for (const cat of scores) {
+      const statusIcon = this.statusIcon(cat.status);
       table.push([
-        this.capitalize(cat.name),
-        `${String(cat.percentage)}%`,
-        `${indicator} ${this.capitalize(cat.status)}`,
+        styles.label(cat.name),
+        styles.number(`${cat.percentage}%`),
+        `${statusIcon} ${styles.label(cat.status)}`,
       ]);
     }
-    return `\n${chalk.bold("Category Scores")}\n${table.toString()}\n`;
+    return `\n${styles.subheading(` ${icons.arrow} Category Scores`)}\n${table.toString()}`;
   }
 
   private renderLanguages(
-    languages: { language: string; files: number; percentage: number }[],
+    languages: Array<{ language: string; files: number; percentage: number; lines?: number }>,
   ): string {
-    if (languages.length === 0) {
+    if (!languages.length) {
       return "";
     }
     const table = new Table({
-      head: ["Language", "Files", "Share"],
-      style: { head: ["cyan"] },
+      head: [styles.label("Language"), styles.label("Files"), styles.label("Share")],
+      style: { head: [], border: ["grey"] },
+      chars: {
+        top: icons.horizontal,
+        "top-mid": icons.teeDown,
+        "top-left": icons.topLeft,
+        "top-right": icons.topRight,
+        bottom: icons.horizontal,
+        "bottom-mid": icons.teeUp,
+        "bottom-left": icons.bottomLeft,
+        "bottom-right": icons.bottomRight,
+        left: icons.vertical,
+        "left-mid": icons.teeRight,
+        mid: icons.horizontal,
+        "mid-mid": icons.crossLine,
+        right: icons.vertical,
+        "right-mid": icons.teeLeft,
+        middle: " ",
+      },
     });
     for (const lang of languages.slice(0, 10)) {
-      table.push([lang.language, String(lang.files), `${String(lang.percentage)}%`]);
+      table.push([lang.language, String(lang.files), `${lang.percentage}%`]);
     }
-    return `${chalk.bold("Languages")}\n${table.toString()}\n`;
+    return `\n${styles.subheading(` ${icons.arrow} Languages`)}\n${table.toString()}`;
   }
 
   private renderGitStats(report: AnalysisReport): string {
-    if (!report.gitStats) {
+    const git = report.gitStats;
+    if (!git) {
       return "";
     }
-    const stats = report.gitStats;
-    const lines: string[] = [chalk.bold("Git Statistics"), ""];
-    lines.push(`${chalk.dim("Commits:")}      ${chalk.white(String(stats.commitCount))}`);
-    lines.push(`${chalk.dim("Branches:")}     ${chalk.white(String(stats.branchCount))}`);
-    lines.push(`${chalk.dim("Contributors:")} ${chalk.white(String(stats.contributorCount))}`);
-    if (stats.firstCommitDate) {
-      lines.push(`${chalk.dim("First commit:")} ${chalk.white(stats.firstCommitDate)}`);
-    }
-    if (stats.lastCommitDate) {
-      lines.push(`${chalk.dim("Last commit:")}  ${chalk.white(stats.lastCommitDate)}`);
-    }
-
-    if (stats.largestCommits.length > 0) {
-      lines.push("", chalk.dim("Largest Commits:"));
+    const lines: string[] = [
+      `${styles.label("Commits:")}      ${styles.number(git.commitCount)}`,
+      `${styles.label("Branches:")}     ${styles.number(git.branchCount)}`,
+      `${styles.label("Contributors:")} ${styles.number(git.contributorCount)}`,
+    ];
+    if (git.largestCommits?.length) {
       const table = new Table({
-        head: ["Author", "Message", "Files"],
-        style: { head: ["cyan"] },
+        head: [styles.label("Author"), styles.label("Message"), styles.label("Files")],
+        style: { head: [], border: ["grey"] },
+        chars: {
+          top: icons.horizontal,
+          "top-mid": icons.teeDown,
+          "top-left": icons.topLeft,
+          "top-right": icons.topRight,
+          bottom: icons.horizontal,
+          "bottom-mid": icons.teeUp,
+          "bottom-left": icons.bottomLeft,
+          "bottom-right": icons.bottomRight,
+          left: icons.vertical,
+          "left-mid": icons.teeRight,
+          mid: icons.horizontal,
+          "mid-mid": icons.crossLine,
+          right: icons.vertical,
+          "right-mid": icons.teeLeft,
+          middle: " ",
+        },
       });
-      for (const commit of stats.largestCommits.slice(0, 5)) {
-        table.push([commit.author, commit.message.substring(0, 40), String(commit.filesChanged)]);
+      for (const c of git.largestCommits.slice(0, 5)) {
+        table.push([c.author, c.message.slice(0, 50), String(c.filesChanged)]);
       }
-      lines.push(table.toString());
+      lines.push(`\n   ${styles.subheading("Largest Commits")}\n${table.toString()}`);
     }
-
-    return boxen(lines.join("\n"), { padding: 1, margin: 1, borderStyle: "single" });
+    return `\n${styles.subheading(` ${icons.arrow} Git Statistics`)}\n${this.simpleBox(lines, "")}`;
   }
 
   private renderIssues(report: AnalysisReport): void {
-    if (report.hardcodedSecrets.length > 0) {
+    if (report.hardcodedSecrets?.length) {
       const table = new Table({
-        head: ["File", "Line", "Type", "Context"],
-        style: { head: ["red"] },
+        head: [
+          severity.high("File"),
+          severity.high("Line"),
+          severity.high("Type"),
+          severity.high("Context"),
+        ],
+        style: { head: [], border: ["red"] },
+        chars: {
+          top: icons.horizontal,
+          "top-mid": icons.teeDown,
+          "top-left": icons.topLeft,
+          "top-right": icons.topRight,
+          bottom: icons.horizontal,
+          "bottom-mid": icons.teeUp,
+          "bottom-left": icons.bottomLeft,
+          "bottom-right": icons.bottomRight,
+          left: icons.vertical,
+          "left-mid": icons.teeRight,
+          mid: icons.horizontal,
+          "mid-mid": icons.crossLine,
+          right: icons.vertical,
+          "right-mid": icons.teeLeft,
+          middle: " ",
+        },
       });
-      for (const secret of report.hardcodedSecrets) {
-        table.push([
-          secret.file,
-          String(secret.line),
-          secret.type,
-          secret.context.substring(0, 40),
-        ]);
+      for (const s of report.hardcodedSecrets.slice(0, 10)) {
+        table.push([s.file, String(s.line), s.type, s.context.slice(0, 60)]);
       }
       console.log(
-        `\n${chalk.bold.red(`${INDICATORS.fail} Hardcoded Secrets Detected`)}\n${table.toString()}\n`,
+        `\n${severity.critical(` ${icons.alert} Hardcoded Secrets Detected`)}\n${table.toString()}`,
       );
     }
 
-    if (report.todoComments.length > 0) {
+    if (report.todoComments?.length) {
       const table = new Table({
-        head: ["File", "Line", "Type", "Text"],
-        style: { head: ["yellow"] },
+        head: [
+          severity.medium("File"),
+          severity.medium("Line"),
+          severity.medium("Type"),
+          severity.medium("Text"),
+        ],
+        style: { head: [], border: ["yellow"] },
+        chars: {
+          top: icons.horizontal,
+          "top-mid": icons.teeDown,
+          "top-left": icons.topLeft,
+          "top-right": icons.topRight,
+          bottom: icons.horizontal,
+          "bottom-mid": icons.teeUp,
+          "bottom-left": icons.bottomLeft,
+          "bottom-right": icons.bottomRight,
+          left: icons.vertical,
+          "left-mid": icons.teeRight,
+          mid: icons.horizontal,
+          "mid-mid": icons.crossLine,
+          right: icons.vertical,
+          "right-mid": icons.teeLeft,
+          middle: " ",
+        },
       });
-      for (const todo of report.todoComments.slice(0, 20)) {
-        table.push([todo.file, String(todo.line), todo.type, todo.text.substring(0, 40)]);
+      for (const t of report.todoComments.slice(0, 20)) {
+        table.push([t.file, String(t.line), t.type, t.text.slice(0, 60)]);
       }
       console.log(
-        `\n${chalk.bold.yellow(`${INDICATORS.warn} TODO/FIXME Comments`)}\n${table.toString()}\n`,
+        `\n${severity.medium(` ${icons.warn} TODO/FIXME Comments`)}\n${table.toString()}`,
       );
     }
 
-    if (report.dependencyIssues.length > 0) {
+    if (report.dependencyIssues?.length) {
       const table = new Table({
-        head: ["Dependency", "Issue", "Severity"],
-        style: { head: ["yellow"] },
+        head: [
+          severity.medium("Dependency"),
+          severity.medium("Issue"),
+          severity.medium("Severity"),
+        ],
+        style: { head: [], border: ["yellow"] },
+        chars: {
+          top: icons.horizontal,
+          "top-mid": icons.teeDown,
+          "top-left": icons.topLeft,
+          "top-right": icons.topRight,
+          bottom: icons.horizontal,
+          "bottom-mid": icons.teeUp,
+          "bottom-left": icons.bottomLeft,
+          "bottom-right": icons.bottomRight,
+          left: icons.vertical,
+          "left-mid": icons.teeRight,
+          mid: icons.horizontal,
+          "mid-mid": icons.crossLine,
+          right: icons.vertical,
+          "right-mid": icons.teeLeft,
+          middle: " ",
+        },
       });
-      for (const dep of report.dependencyIssues) {
-        table.push([
-          dep.name,
-          dep.type,
-          dep.severity === "critical" ? chalk.red(dep.severity) : chalk.yellow(dep.severity),
-        ]);
+      for (const d of report.dependencyIssues.slice(0, 15)) {
+        table.push([d.name, d.type, d.severity]);
       }
-      console.log(
-        `\n${chalk.bold.yellow(`${INDICATORS.warn} Dependency Issues`)}\n${table.toString()}\n`,
-      );
+      console.log(`\n${severity.medium(` ${icons.warn} Dependency Issues`)}\n${table.toString()}`);
     }
 
-    if (report.circularImports.length > 0) {
+    if (report.circularImports?.length) {
       const table = new Table({
-        head: ["File", "Chain"],
-        style: { head: ["red"] },
+        head: [severity.medium("File"), severity.medium("Chain")],
+        style: { head: [], border: ["yellow"] },
+        chars: {
+          top: icons.horizontal,
+          "top-mid": icons.teeDown,
+          "top-left": icons.topLeft,
+          "top-right": icons.topRight,
+          bottom: icons.horizontal,
+          "bottom-mid": icons.teeUp,
+          "bottom-left": icons.bottomLeft,
+          "bottom-right": icons.bottomRight,
+          left: icons.vertical,
+          "left-mid": icons.teeRight,
+          mid: icons.horizontal,
+          "mid-mid": icons.crossLine,
+          right: icons.vertical,
+          "right-mid": icons.teeLeft,
+          middle: " ",
+        },
       });
-      for (const ci of report.circularImports) {
-        const chainStr = ci.chain.join(" \u2192 ");
-        table.push([ci.file, chainStr.substring(0, 60)]);
+      for (const c of report.circularImports.slice(0, 10)) {
+        table.push([c.file, c.chain.slice(0, 5).join(" → ")]);
       }
-      console.log(
-        `\n${chalk.bold.red(`${INDICATORS.fail} Circular Imports`)}\n${table.toString()}\n`,
-      );
+      console.log(`\n${severity.medium(` ${icons.warn} Circular Imports`)}\n${table.toString()}`);
     }
   }
 
   private renderRecommendations(recommendations: string[]): string {
-    if (recommendations.length === 0) {
+    if (!recommendations.length) {
       return "";
     }
-    const lines = [chalk.bold.green(`${INDICATORS.star} Recommendations`), ""];
-    for (const rec of recommendations) {
-      lines.push(`  ${INDICATORS.arrow} ${rec}`);
-    }
-    return boxen(lines.join("\n"), {
-      padding: 1,
-      margin: 1,
-      borderStyle: "single",
-      borderColor: "green",
-    });
+    const lines = recommendations.map((r) => `   ${theme.primary(icons.star)} ${theme.muted(r)}`);
+    return `\n${this.simpleBox(lines, ` ${icons.star} Recommendations `)}`;
   }
 
   private renderFooter(report: AnalysisReport): string {
-    const duration =
-      report.duration > 1000
-        ? `${(report.duration / 1000).toFixed(2)}s`
-        : `${String(report.duration)}ms`;
-    return boxen(chalk.dim(`Analyzed in ${duration} at ${report.analyzedAt}`), {
-      padding: 0,
-      margin: 1,
-      borderStyle: "single",
-      borderColor: "gray",
-    });
+    const duration = report.duration ?? 0;
+    const time = report.analyzedAt ?? new Date().toISOString();
+    return `\n${styles.dim(`   ${icons.diamond} Analyzed in ${formatDuration(duration)} at ${time}`)}\n`;
   }
 
-  private renderProgressBar(score: number, width = 20): string {
-    const filled = Math.round((score / 100) * width);
-    const empty = width - filled;
-    const color = this.scoreToColor(score);
-    return color("\u2588".repeat(filled) + "\u2591".repeat(Math.max(0, empty)));
+  private simpleBox(lines: string[], title: string): string {
+    const w = Math.min(terminalWidth(), 72);
+    const border = theme.border;
+    const inner = lines.map((l) => `  ${l}`).join("\n");
+    const topBorder = title
+      ? `  ${border(icons.topLeft + icons.horizontal)} ${styles.subheading(title)} ${border(repeat(icons.horizontal, Math.max(0, w - title.length - 6)))}${border(icons.topRight)}`
+      : `  ${border(icons.topLeft)}${border(repeat(icons.horizontal, w))}${border(icons.topRight)}`;
+    const bottom = `  ${border(icons.bottomLeft)}${border(repeat(icons.horizontal, w))}${border(icons.bottomRight)}`;
+    return `${topBorder}\n${inner}\n${bottom}`;
   }
 
-  private scoreToColor(score: number): ChalkInstance {
+  private scoreColor(score: number): (s: string) => string {
     if (score >= 80) {
-      return chalk.green;
+      return severity.success;
     }
     if (score >= 60) {
-      return chalk.yellow;
+      return severity.medium;
     }
-    return chalk.red;
+    return severity.high;
   }
 
-  private statusIndicator(status: string): string {
+  private statusIcon(status: string): string {
     switch (status) {
       case "excellent":
-        return chalk.green(INDICATORS.pass);
+        return severity.success(icons.checkCircle);
       case "good":
-        return chalk.cyan(INDICATORS.pass);
+        return severity.success(icons.check);
       case "fair":
-        return chalk.yellow(INDICATORS.warn);
+        return severity.medium(icons.warn);
       case "poor":
-        return chalk.red(INDICATORS.warn);
+        return severity.high(icons.cross);
       case "critical":
-        return chalk.red(INDICATORS.fail);
+        return severity.critical(icons.alert);
       default:
-        return chalk.gray(INDICATORS.info);
+        return theme.muted(icons.dot);
     }
-  }
-
-  private capitalize(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 }

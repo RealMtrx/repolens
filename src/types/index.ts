@@ -140,6 +140,51 @@ export interface ComplexityMetrics {
   maxNestingDepth: number;
 }
 
+export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
+export type MonorepoTool = "turborepo" | "nx" | "lerna" | "workspaces";
+export type CiProvider =
+  "github-actions" | "gitlab-ci" | "azure-pipelines" | "circleci" | "travis-ci" | "jenkins";
+export type Framework =
+  | "next"
+  | "react"
+  | "vue"
+  | "svelte"
+  | "angular"
+  | "astro"
+  | "nuxt"
+  | "express"
+  | "nestjs"
+  | "fastify";
+export type TestFramework = "vitest" | "jest" | "mocha" | "playwright" | "cypress";
+export type Linter = "eslint" | "prettier" | "biome";
+export type GitHook = "husky" | "commitlint";
+export type ChangesetTool = "changesets";
+
+export interface DetectedTechnologies {
+  packageManager: PackageManager | null;
+  packageManagerVersion: string | null;
+  monorepo: MonorepoTool | null;
+  workspaces: boolean;
+  frameworks: Framework[];
+  testFrameworks: TestFramework[];
+  linters: Linter[];
+  gitHooks: GitHook[];
+  changesets: boolean;
+  ciProviders: CiProvider[];
+  docker: boolean;
+  dockerCompose: boolean;
+  git: boolean;
+  nodeVersion: string | null;
+  typescript: boolean;
+  javascript: boolean;
+  hasReadme: boolean;
+  hasLicense: boolean;
+  hasSecurity: boolean;
+  hasContributing: boolean;
+  npmPackageType: "application" | "library" | null;
+  hasChangesetsConfig: boolean;
+}
+
 export interface AnalysisReport {
   projectName: string;
   projectPath: string;
@@ -147,6 +192,7 @@ export interface AnalysisReport {
   duration: number;
   summary: ReportSummary;
   folderStructure: string;
+  technologies: DetectedTechnologies;
   languages: LanguageBreakdown[];
   biggestFolders: FolderInfo[];
   biggestFiles: FileInfo[];

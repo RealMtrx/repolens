@@ -8,3 +8,4 @@ docs/api/
 .DS_Store
 *.log
 *.tgz
+.repoinsight-cache.json

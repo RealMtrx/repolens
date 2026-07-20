@@ -6,6 +6,8 @@ export const AnalysisOptionsSchema = z.object({
   verbose: z.boolean().default(false),
   timeout: z.number().positive().default(30000),
   maxFileSize: z.number().positive().default(10_485_760),
+  useCache: z.boolean().default(true),
+  incremental: z.boolean().default(false),
 });
 
 export const ReportFormatSchema = z.enum(["terminal", "json", "markdown", "html"]);
