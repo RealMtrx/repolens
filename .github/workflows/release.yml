@@ -31,6 +31,6 @@ jobs:
           npm pkg set name="@RealMtrx/repoinsight"
           npm config set //npm.pkg.github.com/:_authToken ${{ secrets.GITHUB_TOKEN }}
           npm publish --registry=https://npm.pkg.github.com
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
