@@ -1,4 +1,26 @@
-import { theme, styles, createBox, formatDuration, severity } from "../tui/index.js";
+import { Command } from "commander";
+import { register } from "./registry.js";
+import type { CommandDefinition } from "./types.js";
+
+const def: CommandDefinition = {
+  name: "doctor",
+  aliases: ["d", "checkup"],
+  description: "Run repository diagnostics and health check",
+  helpText:
+    "Perform a comprehensive health checkup on your repository, identifying issues and providing recommendations",
+  category: "Analysis",
+  examples: [
+    { usage: "repoinsight doctor", description: "Run diagnostics on current directory" },
+    { usage: "repoinsight doctor ./path", description: "Run diagnostics on specific directory" },
+  ],
+  setup(cmd: Command) {
+    cmd.argument("[directory]", "target directory", ".").action(async (directory: string) => {
+      await doctorAction(directory, {});
+    });
+  },
+};
+
+register(def);
 
 export async function doctorAction(
   directory: string,
@@ -13,6 +35,8 @@ export async function doctorAction(
   const duration = Date.now() - start;
 
   spinner.succeed(" Diagnostics complete");
+
+  const { theme, styles, createBox, formatDuration, severity } = await import("../tui/index.js");
 
   const width = Math.min(process.stdout.columns ?? 80, 80);
 
@@ -70,4 +94,8 @@ export async function doctorAction(
   }
 
   console.log("");
+}
+
+export function doctorCommand(cmd: Command): void {
+  def.setup(cmd);
 }
